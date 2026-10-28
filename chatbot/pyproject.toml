@@ -1,0 +1,9 @@
+[project]
+name = "a7chat"
+version = "0.1.0"
+description = "Analytics 7 chatbot MVP: plain-English questions over CIS data, read-only"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [".", "tests"]

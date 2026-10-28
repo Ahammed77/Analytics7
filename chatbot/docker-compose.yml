@@ -1,0 +1,35 @@
+# Demo stack: Postgres reporting DB with the synthetic dataset, and the chatbot app.
+#   docker compose up --build        then open http://localhost:8000
+services:
+  reporting-db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: a7_reporting
+      POSTGRES_USER: a7_admin
+      POSTGRES_PASSWORD: a7_admin   # demo only
+    volumes:
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./db/seed.sql:/docker-entrypoint-initdb.d/02_seed.sql:ro
+      - ./db/roles.sql:/docker-entrypoint-initdb.d/03_roles.sql:ro
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U a7_admin -d a7_reporting"]
+      interval: 2s
+      retries: 30
+
+  chatbot:
+    build: .
+    depends_on:
+      reporting-db:
+        condition: service_healthy
+    environment:
+      A7_DATABASE_URL: postgresql://a7_reader:a7_reader@reporting-db:5432/a7_reporting
+      A7_QUERY_MODEL: ${A7_QUERY_MODEL:-claude}   # needs ANTHROPIC_API_KEY; "recorded" = offline backup (approved questions only)
+      A7_CLAUDE_MODEL: ${A7_CLAUDE_MODEL:-claude-opus-5-5}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      A7_REQUEST_LOG_PATH: /app/logs/requests.jsonl
+    volumes:
+      - ./logs:/app/logs
+    ports:
+      - "8000:8000"

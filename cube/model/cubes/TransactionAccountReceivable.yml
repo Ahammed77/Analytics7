@@ -1,0 +1,78 @@
+# -------------------------------------------------------------------
+# Cube: transactionAccountReceivable
+# Base: generalLedgerSummary (extends)
+#
+# Description:
+# This cube extends generalLedgerSummary and applies AR-specific filtering.
+# It includes only transactions from PB/CR that are mapped to AR stat codes
+# through the standard statistic profile.
+#
+# Inherited from generalLedgerSummary:
+#   - All dimensions (runDate, journalNumber, applicationCode, journalCode, etc.)
+#   - All measures (amount, etc.)
+#
+# Additional Filters:
+#   - applcode = 'PB' (Payment/Billing)
+#   - journalcode = 'CR' (Cash Receipt)
+#   - pseudo_no must map to AR stat codes (via pu_stat_xref.ar)
+#
+# Typical Use Cases:
+#   - Track outstanding receivables
+#   - Analyze AR cash inflows
+#   - Monitor receivable trends over time
+# -------------------------------------------------------------------
+
+cubes:
+  - name: transactionAccountReceivable
+    title: Transaction Account Receivable
+    description: >
+      Accounts receivable transactions from the general ledger, filtered for AR-specific
+      business logic. Useful for tracking receivables and analyzing cash inflows.
+    
+    # Extend generalLedgerSummary to inherit its structure
+    extends: generalLedgerSummary
+
+    sql: >
+      SELECT *
+      FROM glsvdata
+      WHERE applcode = 'PB'
+        AND journalcode = 'CR'
+        AND pseudo_no IN (
+            SELECT DISTINCT cat_pseudo
+            FROM pu_stat_det
+            JOIN pu_stat_xref ON pu_stat_xref.ar = pu_stat_det.stat_code
+        )
+    
+    data_source: default
+    
+    dimensions:
+      - name: pseudoNumber
+        sql: pseudo_no
+        type: string
+        title: Pseudo Number
+        description: Pseudo account number mapped to AR stat codes.
+
+    measures:
+      - name: totalReceivableAmount
+        sql: amount
+        type: sum
+        title: Total Receivable Amount
+        description: Total sum of all AR transaction amounts.
+
+      - name: avgReceivableAmount
+        sql: amount
+        type: avg
+        title: Average Receivable Amount
+        description: Average AR transaction amount.
+
+      - name: maxReceivableAmount
+        sql: amount
+        type: max
+        title: Maximum Receivable Amount
+        description: Highest single AR transaction.
+
+      - name: minReceivableAmount
+        sql: amount
+        type: min
+        title: Minimum Receivable Amount
+        description: Lowest single AR transaction.

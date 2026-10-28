@@ -1,0 +1,211 @@
+# Cube: callTypeAnalysis
+# Title: Call Type Analysis
+#
+# Description:
+#   Analyzes CSR call records from `csrcalld`, enriches call types from `csrctypr`,
+#   and call statuses from `csrstatc`. It also links to the `account` cube for
+#   account-related attributes. Each row represents a single call record.
+#
+# Grain:
+#   One row per customer service call (`csrcalld.call_number`).
+#
+# Key Notes:
+#   - `createdon` is the timestamp when the call was created.
+#   - `calltype` comes from `csrcalld`; `description`/`shortdesc` come from `csrctypr`.
+#   - `callstatus` is enriched with `csrstatc.shortdesc`.
+#   - `account_no` and `occupant_code` enable joining to the `account` cube.
+#
+# Joins:
+#   - `csrcalld` JOIN `csrctypr` ON (`calltype`, `callcode`) for call type descriptions.
+#   - `csrcalld` LEFT JOIN `csrstatc` ON `callstatus` for status descriptions.
+#   - many_to_one join to `account` on (`account_no`, `occupant_code`).
+#
+# Key Dimensions:
+#   - callNumber (primary key), createdOn (time), callType/description, createdBy,
+#     accountNumber/occupantCode, scheduledOn, callStatus, callTypeDescription,
+#     callStatusDescription, month.
+#
+# Key Measures:
+#   - total_calls: Count of call records.
+#
+# Typical Use Cases:
+#   - Trend call volumes by type/status/agent over time (year/month/day via `createdOn` granularity).
+#   - Detail listings joined with account fields via the `account` cube.
+#   - Analyze call distribution by month/year and filter by type/status/account.
+
+cubes:
+  - name: callTypeAnalysis
+    title: Call Type Analysis
+    description: >
+      Helps you understand what types of customer service calls are coming in and how many are being logged over time over a specific CSR Agent. 
+      Useful for tracking trends, identifying frequent call topics, and improving customer support.
+    sql: >
+      SELECT 
+        calld.call_number AS call_number,
+        calld.createdon AS createdon,
+        calld.calltype AS calltype,
+        calld.callcode AS callcode,
+        calld.order_no AS order_no,
+        calld.ordercode AS ordercode,
+        calltype.description AS description,
+        calld.createdby AS createdby,
+        calld.account_no AS account_no,
+        calld.occupant_code AS occupant_code,
+        calld.scheduledon AS scheduledon,
+        calld.completedon AS completedon,
+        calld.callstatus AS callstatus,
+        calltype.shortdesc AS calldesc,
+        callstatus.shortdesc AS statdesc
+      FROM csrcalld calld
+      LEFT JOIN csrctypr calltype
+        ON calld.calltype = calltype.calltype
+      AND calld.callcode = calltype.callcode
+      LEFT JOIN csrstatc callstatus
+        ON calld.callstatus = callstatus.callstatus
+
+    joins:
+      - name: account
+        relationship: many_to_one
+        sql: "{CUBE.accountNumber} = {account.accountNumber} AND {CUBE.occupantCode} = {account.occupantCode}"
+
+    dimensions:
+      - name: callNumber
+        sql: call_number
+        type: string
+        title: Call Number
+        primary_key: true
+        description: Unique identifier for the call record.
+
+      - name: accountNumber
+        sql: account_no
+        type: string
+        title: Account Number
+        description: The account number.
+
+      - name: occupantCode
+        sql: occupant_code
+        type: string
+        title: Occupant Code
+        description: The occupant code.
+
+      - name: accountName
+        sql: "{account.name}"
+        type: string
+        title: Account Name
+        description: Name of the customer account associated with the call.
+
+      - name: callType
+        sql: calltype
+        type: string
+        title: Call Type
+        description: Type of customer service call (e.g., MOVEIN, RECON, AUTO).
+
+      - name: callCode
+        sql: callcode
+        type: string
+        title: Call Code
+        description: Maps to csrcalld.callcode.
+
+      - name: orderCode
+        sql: ordercode
+        type: string
+        title: Order Code
+        description: Maps to csrcalld.ordercode.
+
+      - name: isServiceOrder
+        sql: "IIF({CUBE}.orderCode IS NULL, 'FALSE', 'TRUE')"
+        type: string
+        title: Is Service Order
+        description: Indicates whether the CSR call is a service order.
+
+      - name: orderNo
+        sql: order_no
+        type: string
+        title: Order Number
+        description: Order number associated with the call (legacy ASP queries 1-2).
+
+      - name: description
+        sql: description
+        type: string
+        title: Call Type Description
+        description: Human-readable description of the call type from the reference table.
+
+      - name: createdOn
+        sql: createdon
+        type: time
+        title: Call Created Date
+        description: Timestamp of when the call record was created in the system.
+
+      - name: createdBy
+        sql: createdby
+        type: string
+        title: CSR Agent
+        description: The CSR who created the call.
+
+      - name: completedOn
+        sql: completedon
+        type: time
+        title: Completed on
+        description: Timestamp of when the call was completed.
+
+      - name: scheduledOn
+        sql: scheduledon
+        type: time
+        title: Scheduled On
+        description: Timestamp of when the call is scheduled.
+
+      - name: callStatus
+        sql: callstatus
+        type: string
+        title: Call Status
+        description: Status of the call (e.g., Scheduled, Completed).
+
+      - name: callTypeDescription
+        sql: calldesc
+        type: string
+        title: Call Type Description
+        description: Short description of the call type.
+
+      - name: summaryDescription
+        sql: calldesc
+        type: string
+        title: Call Summary Description
+        description: Short summary of the call type (alias for callTypeDescription).
+      
+      - name: callStatusDescription
+        sql: statdesc
+        type: string
+        title: Call Status Description
+        description: Short description of the call status.
+
+      - name: currentStatus
+        sql: statdesc
+        type: string
+        title: Current Status of the Call
+        description: The current status of the call (alias for callStatusDescription).
+
+      - name: month
+        sql: >
+          CASE DATEPART(MONTH, createdon)
+            WHEN 1 THEN 'JAN'
+            WHEN 2 THEN 'FEB'
+            WHEN 3 THEN 'MAR'
+            WHEN 4 THEN 'APR'
+            WHEN 5 THEN 'MAY'
+            WHEN 6 THEN 'JUN'
+            WHEN 7 THEN 'JUL'
+            WHEN 8 THEN 'AUG'
+            WHEN 9 THEN 'SEP'
+            WHEN 10 THEN 'OCT'
+            WHEN 11 THEN 'NOV'
+            WHEN 12 THEN 'DEC'
+          END
+        type: string
+        title: Call Month Name
+        description: Abbreviated name of the month extracted from the call creation date.
+        
+    measures:
+      - name: totalCalls
+        type: count
+        title: Total Calls
+        description: Total number of call records logged in the system.

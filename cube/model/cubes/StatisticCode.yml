@@ -1,0 +1,72 @@
+# Cube: statisticCode
+# Purpose:
+#   Reference catalog of statistic codes used across utility processes for labeling,
+#   grouping, and filtering analyses.
+#
+# Grain:
+#   One row per statistic code in pu_stat_codes.
+#
+# Source:
+#   - pu_stat_codes (code, description, group, utility type)
+#
+# Join(s):
+#   - controlType (many_to_one) on utility_type
+#     Ensures codes map to the correct utility (Water/Gas/Electric) definitions.
+#
+# Key Dimensions:
+#   - statCode (PK), utilityType
+#   - statDescription, groupCode
+#   - displayName (utilityType: groupCode: statDescription)
+#
+# Typical Use Cases:
+#   - Build filters/picklists for reports and dashboards
+#   - Group results by statistic code or code groups
+#   - Display readable labels for statistic-coded facts
+#
+# Notes:
+#   - displayName concatenates type, group, and description for UI-friendly labels.
+
+cubes:
+  - name: statisticCode
+    sql_table: pu_stat_codes
+    data_source: default
+    title: Statistic Code
+    description: Unique identifier for the statistic codes associated with Service Type.
+
+    joins:
+      - name: controlType
+        relationship: many_to_one
+        sql: "{CUBE.utilityType} = {controlType.utilityType}"
+
+    dimensions:
+      - name: statCode
+        sql: stat_code
+        type: string
+        title: Statistic Code
+        description: Unique identifier for the statistic codes associated with Service Type.
+        primary_key: true
+        public: true
+
+      - name: utilityType
+        sql: utility_type
+        type: string
+        title: Utility Type
+        description: The utility category associated with the statistic code (e.g., Water, Electric).
+
+      - name: statDescription
+        sql: stat_description
+        type: string
+        title: Statistic Code Description
+        description: Descriptive text for the statistic code.
+
+      - name: groupCode
+        sql: group_code
+        type: string
+        title: Group Code
+        description: Code used for logically grouping related statistic codes together.
+
+      - name: displayName
+        sql: "CONCAT_WS(': ', {CUBE}.utility_type, {CUBE}.group_code, {CUBE}.stat_description)"
+        type: string
+        title: Display Name
+        description: A display-friendly label combining utility type, group code, and description.

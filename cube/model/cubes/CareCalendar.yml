@@ -1,0 +1,182 @@
+# Cube: CareCalendar
+# Title: Care Calendar with Notes
+#
+# Description:
+#   Extends CallTypeAnalysis to provide calendar view of customer care calls
+#   with associated notes from scheduled (csrschdd) and completed (csrcmpld) activities.
+#   Replicates the SQL queries from CareCalendar.md for date-filtered call listings
+#   and detailed call information with notes.
+#
+# Grain:
+#   One row per call record with associated notes.
+#
+# Key Notes:
+#   - Leverages CallTypeAnalysis cube for core call information
+#   - Adds notes from csrschdd (scheduled notes) and csrcmpld (completed notes)
+#   - Supports filtering by year, month, day as shown in CareCalendar.md queries
+#   - Notes are ordered by sequence_no for proper display
+#
+# Joins:
+#   - many_to_one join to CallTypeAnalysis on callNumber
+#   - many_to_one join to account cube on (accountNumber, occupantCode)
+#   - LEFT JOIN to csrschdd for scheduled notes
+#   - LEFT JOIN to csrcmpld for completed notes
+#
+# Key Dimensions:
+#   - All CallTypeAnalysis dimensions plus notes-related fields
+#   - noteType, sequenceNo, notes for both scheduled and completed notes
+#
+# Key Measures:
+#   - totalCalls (inherited from CallTypeAnalysis)
+#   - notesCount: Count of notes per call
+#
+# Typical Use Cases:
+#   - Calendar view of calls filtered by date (year/month/day)
+#   - Detailed call information with associated notes
+#   - Call tracking with scheduling and completion notes
+
+cubes:
+  - name: careCalendar
+    extends: callTypeAnalysis
+    title: Care Calendar with Notes
+    description: >
+      Calendar view of customer care calls with scheduled and completed notes.
+    data_source: default
+
+    joins:
+      - name: scheduledNotes
+        relationship: one_to_many
+        sql: "{CUBE.callNumber} = {scheduledNotes.callNumber}"
+
+      - name: completedNotes
+        relationship: one_to_many
+        sql: "{CUBE.callNumber} = {completedNotes.callNumber}"
+
+      - name: account
+        relationship: many_to_one
+        sql: "{CUBE.accountNumber} = {account.accountNumber} AND {CUBE.occupantCode} = {account.occupantCode}"
+
+    dimensions:
+      # Core call dimensions (inherited from CallTypeAnalysis)
+      - name: callNumber
+        sql: call_number
+        type: string
+        title: Call Number
+        description: Unique identifier for the call record.
+        primary_key: true
+
+      - name: createdOn
+        sql: createdon
+        type: time
+        title: Call Created Date
+        description: Timestamp of when the call record was created in the system.
+
+      - name: createdBy
+        sql: createdby
+        type: string
+        title: CSR Agent
+        description: The CSR who created the call.
+
+      - name: accountNumber
+        sql: account_no
+        type: string
+        title: Account Number
+        description: The account number.
+
+      - name: occupantCode
+        sql: occupant_code
+        type: string
+        title: Occupant Code
+        description: The occupant code.
+
+      - name: accountName
+        sql: "{account.name}"
+        type: string
+        title: Account Name
+        description: Name of the customer account associated with the call.
+
+      - name: callType
+        sql: calltype
+        type: string
+        title: Call Type
+        description: Type of customer service call.
+
+      - name: callCode
+        sql: callcode
+        type: string
+        title: Call Code
+        description: Maps to CallTypeAnalysis/csrcalld.callcode.
+
+      - name: orderNo
+        sql: order_no
+        type: string
+        title: Order Number
+        description: Order number associated with the call.
+
+      - name: callTypeDescription
+        sql: description
+        type: string
+        title: Call Type Description
+        description: Human-readable description of the call type.
+
+      - name: callTypeShortDesc
+        sql: calldesc
+        type: string
+        title: Call Type Short Description
+        description: Short description of the call type.
+
+      - name: scheduledOn
+        sql: scheduledon
+        type: time
+        title: Scheduled Date
+        description: Timestamp when the call is scheduled.
+
+      - name: completedOn
+        sql: completedon
+        type: time
+        title: Completed Date
+        description: Timestamp when the call was completed.
+
+      - name: callStatus
+        sql: callstatus
+        type: string
+        title: Call Status
+        description: Status of the call.
+
+      - name: callStatusDescription
+        sql: statdesc
+        type: string
+        title: Call Status Description
+        description: Short description of the call status.
+
+      - name: scheduledSequenceNo
+        sql: "{scheduledNotes.sequenceNo}"
+        type: string
+        title: Scheduled Notes Sequence
+        description: Sequence number for scheduled notes from csrschdd table.
+
+      - name: scheduledNotes
+        sql: "{scheduledNotes.notes}"
+        type: string
+        title: Scheduled Notes
+        description: Notes associated with scheduled activities for this call.
+
+      - name: completedSequenceNo
+        sql: "{completedNotes.sequenceNo}"
+        type: string
+        title: Completed Notes Sequence
+        description: Sequence number for completed notes from csrcmpld table.
+
+      - name: completedNotes
+        sql: "{completedNotes.notes}"
+        type: string
+        title: Completed Notes
+        description: Notes associated with completed activities for this call.
+
+    measures:
+      # Call counts (leveraging CallTypeAnalysis functionality)
+      - name: totalCalls
+        type: count
+        title: Total Calls
+        description: Total number of call records in the dataset.
+

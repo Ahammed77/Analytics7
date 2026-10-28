@@ -1,0 +1,59 @@
+# Chatbot overlay for the semantic catalogue.
+# The Cube YAMLs stay the source of tables, fields, joins, titles and descriptions.
+# This file adds only what the YAMLs do not carry: which cubes are in scope,
+# synonyms, clearer labels, and members the chatbot needs that the YAMLs lack.
+
+# Proposed cube subset (spec: account, account_balance, cash_batch_data,
+# cash_detail, csr_calls, key_account). csr_calls maps to the two CSR call cubes.
+in_scope:
+  - account
+  - accountBalance
+  - cashBatchData
+  - cashDetail
+  - callTypeAnalysis
+  - csrActivityAnalysis
+  - keyAccount   # no Cube YAML exists yet; reported as a missing cube
+
+# Labels shown to users, where the YAML title reads badly.
+labels:
+  account.accountNumber: Account Number
+  account.id: Account ID
+  callTypeAnalysis.completedOn: Completed On
+
+# Members the query model should not see (still usable for joins).
+hidden:
+  - account.occupantCode
+  - account.id
+  - callTypeAnalysis.occupantCode
+  - csrActivityAnalysis.occupantCode
+  - callTypeAnalysis.accountNumber
+  - csrActivityAnalysis.accountNumber
+
+synonyms:
+  account.name: [customer, customer name, account holder]
+  account.accountNumber: [account, account no, "account #"]
+  account.serviceAddress: [address, service address, street address, location]
+  accountBalance.overdueBalance: [past due, past due balance, past-due, arrears, overdue, overdue amount, amount owing past due]
+  accountBalance.currentBalance: [current amount, not yet due]
+  accountBalance.totalBalance: [balance, total owed, amount owed, owes, total due]
+  accountBalance.lastBillAmount: [last bill, latest bill]
+  accountBalance.lateChargeBalance: [late fees, penalties]
+  cashBatchData.cashierUsername: [cashier, teller, user]
+  cashBatchData.tenderedAmount: [cash taken, cash collected, amount collected, takings]
+  cashDetail.transactionAmount: [cash receipt amount, payment amount, receipts]
+  cashDetail.runDate: [day, date]
+  callTypeAnalysis.totalCalls: [number of calls, call count, call volume]
+  callTypeAnalysis.callType: [type of call, call category]
+  csrActivityAnalysis.createdBy: [CSR, agent, CSR agent, rep]
+  csrActivityAnalysis.totalCalls: [number of calls, calls logged, call count]
+
+extra_members:
+  account:
+    dimensions:
+      - name: customerClass
+        sql: cust_class
+        type: string
+        title: Customer Class
+        description: Whether the account is residential, commercial or industrial.
+        known_values: {RES: Residential, COM: Commercial, IND: Industrial}
+        note: Not in the Cube YAML. Added for the commercial-accounts follow-up; the CIS column name (cust_class) is an assumption to confirm.

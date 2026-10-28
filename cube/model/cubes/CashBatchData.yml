@@ -1,0 +1,91 @@
+# Cube: cashBatchData
+# Purpose:
+#   Batches of cashier-entered cash transactions for reconciliation and audit.
+#   Shows who submitted cash, when they submitted it, and the batch/entry context.
+#
+# Grain:
+#   One row per icpcashm transaction (entry) joined to its batch header (icphdrh).
+#
+# Source:
+#   - icpcashm (cash transactions)
+#   - icphdrh (batch header with login linkage)
+#
+# Key Dimensions:
+#   - batchName (login), entryNumber (entry_no), batchId, cashierUsername, transactionDate
+#   - transactionMonth, transactionYear (period rollups)
+#
+# Measure(s):
+#   - tenderedAmount (sum of tendered_amt)
+#
+# Typical Use Cases:
+#   - Reconcile daily cash batches and investigate discrepancies
+#   - Attribute cash activity to users and batches
+#   - Trend analysis of cash submissions by day/month
+#
+# Notes:
+#   - Ensure only one primary key is defined across dimensions (batchName and entryNumber
+#     are both marked as primary_key in the current draft).
+
+cubes:
+  - name: cashBatchData
+    title: Cash Batch Data
+    description: >
+      Tracks batches of cash transactions submitted by users. Useful for understanding when and by whom cash entries were submitted. 
+      Ideal for reconciling daily or periodic cash activity.
+
+    sql: >
+      select batchid, userid, trans_date, tendered_amt, entry_no, icpcashm.login AS login
+      FROM icpcashm
+      JOIN icphdrh ON icphdrh.login = icpcashm.login
+
+    dimensions:
+      - name: batchName
+        sql: login
+        type: string
+        title: Batch Name
+        description: This represents the name of the batch.
+        primary_key: true
+
+      - name: entryNumber
+        sql: entry_no
+        type: string
+        title: Entry Number
+        description: The unique entry number for each transaction record.
+        primary_key: true
+
+      - name: batchId
+        sql: batchid
+        type: string
+        title: Batch ID
+        description: Identifier for the batch in which the transaction is grouped.
+
+      - name: cashierUsername
+        sql: userid
+        type: string
+        title: Cashier Username
+        description: The identifier for the cashier who performed the transaction.
+
+      - name: transactionDate
+        sql: trans_date
+        type: time
+        title: Transaction Date
+        description: The exact date and time when the transaction occurred.
+
+      - name: transactionMonth
+        sql: dateadd(month, datediff(month, 0, trans_date), 0)
+        type: time
+        title: Transaction Month
+        description: The month of the transaction date, used for monthly aggregation.
+
+      - name: transactionYear
+        sql: dateadd(year, datediff(year, 0, trans_date), 0)
+        type: time
+        title: Transaction Year
+        description: The year of the transaction date, used for yearly aggregation.
+
+    measures:
+      - name: tenderedAmount
+        sql: tendered_amt
+        type: sum
+        title: Amount Tendered
+        description: Sum of tendered amounts across transactions.

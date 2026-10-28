@@ -1,0 +1,61 @@
+# Cube: CompletedNotes
+# Title: Completed Notes
+#
+# Description:
+#   Captures completed call notes from `csrcmpld`, storing the follow-up details CSR
+#   agents enter after a call is finished.
+#
+# Grain:
+#   One row per completed-note sequence number for a given call (`csrcmpld.call_number`).
+#
+# Key Notes:
+#   - Holds the completed notes.
+#   - Carries the sequence number so notes display in their original order.
+#   - Designed to join back to call-level cubes (e.g., `CareCalendar`) via callNumber.
+#
+# Joins:
+#   - Typically joined to call-centric cubes on `callNumber` to enrich call listings with completed notes.
+#
+# Key Dimensions:
+#   - callNumber (primary key), sequenceNo (note order), notes (note text).
+#
+# Key Measures:
+#   - count: Number of completed notes returned for the filtered result set.
+#
+# Typical Use Cases:
+#   - Surface completed notes in Care Calendar detail views.
+#   - Count how many post-call notes exist per call.
+#   - Preserve the chronological order of after-call documentation.
+cubes:
+  - name: completedNotes
+    title: Completed Notes
+    description: Completed notes associated with the call.
+    sql_table: csrcmpld
+    data_source: default
+
+    dimensions:
+      - name: callNumber
+        sql: call_number
+        type: string
+        primary_key: true
+        title: Call Number
+        description: Unique identifier for the call record.
+
+      - name: sequenceNo
+        sql: sequence_no
+        type: string
+        primary_key: true
+        title: Sequence Number
+        description: Sequence number for the completed note.
+
+      - name: notes
+        sql: notes
+        type: string
+        title: Notes
+        description: Completed notes associated with the call.
+
+    measures:
+      - name: count
+        type: count
+        title: Count
+        description: Number of completed notes associated with the call.

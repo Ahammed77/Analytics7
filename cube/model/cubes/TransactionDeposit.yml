@@ -1,0 +1,105 @@
+# -------------------------------------------------------------------
+# Cube: transactionDeposit
+# Base: generalLedgerSummary (extends)
+#
+# Description:
+# This cube extends generalLedgerSummary and applies deposit-specific filtering.
+# It identifies deposit transactions (funds received to be held/returned) by
+# mapping pseudo_no to deposit stat codes (via pu_stat_xref.deposits) and
+# merchant deposit revenue codes (via iccgrpmd.dep_revenue).
+#
+# Grain:
+#   One row per deposit-related cash receipt journal entry in glsvdata.
+#
+# Inherited from generalLedgerSummary:
+#   - All dimensions (runDate, runDateMonth, runDateYear, journalNumber, etc.)
+#   - All measures (amount)
+#
+# Additional Filters:
+#   - applcode = 'PB' (Payments/Billing)
+#   - journalcode = 'CR' (Cash Receipt)
+#   - pseudo_no IN (deposit categories + merchant deposit revenue)
+#
+# Key Dimensions:
+#   - sequenceId (PK)
+#   - runDate (with month/year rollups) - inherited
+#   - pseudoNumber - deposit-specific
+#
+# Measures:
+#   - amount (sum of deposit amounts) - inherited
+#
+# Typical Use Cases:
+#   - Monitor deposits by day/month/year
+#   - Reconcile deposit inflows to GL and category mappings
+#   - Track trends by deposit category (via pseudo mappings)
+#   - Track merchant deposit revenue
+#
+# Notes:
+#   - run_date represents the GL posting/run date for the transaction
+#   - Deposit identification depends on mappings in pu_stat_xref and iccgrpmd
+#   - Includes both standard deposits AND merchant deposit revenue
+# -------------------------------------------------------------------
+
+cubes:
+  - name: transactionDeposit
+    title: Transaction Deposit
+    description: >
+      Deposit transactions from the general ledger, filtered for deposit-specific
+      business logic. Focuses on money received that's meant to be held or returned
+      later. Useful for finance teams monitoring incoming deposit funds.
+
+    extends: generalLedgerSummary
+    
+    sql: >
+      SELECT *
+      FROM glsvdata
+      WHERE applcode = 'PB'
+        AND journalcode = 'CR'
+        AND pseudo_no IN (
+            SELECT cat_pseudo
+            FROM pu_stat_det
+            JOIN pu_stat_xref ON pu_stat_xref.deposits = pu_stat_det.stat_code
+            UNION
+            SELECT cat_pseudo
+            FROM pu_stat_det
+            JOIN iccgrpmd ON iccgrpmd.dep_revenue = pu_stat_det.stat_code
+        )
+    
+    data_source: default
+    
+    dimensions:
+      - name: pseudoNumber
+        sql: pseudo_no
+        type: string
+        title: Pseudo Number
+        description: Pseudo account number mapped to deposit stat codes or merchant deposit revenue accounts.
+
+    measures:
+      - name: totalDepositAmount
+        sql: amount
+        type: sum
+        title: Total Deposit Amount
+        description: Total sum of all deposit transaction amounts.
+
+      - name: avgDepositAmount
+        sql: amount
+        type: avg
+        title: Average Deposit Amount
+        description: Average deposit transaction amount.
+
+      - name: maxDepositAmount
+        sql: amount
+        type: max
+        title: Maximum Deposit Amount
+        description: Highest single deposit transaction.
+
+      - name: minDepositAmount
+        sql: amount
+        type: min
+        title: Minimum Deposit Amount
+        description: Lowest single deposit transaction.
+
+      - name: depositTransactionCount
+        type: count
+        title: Deposit Transaction Count
+        description: Number of deposit transactions.

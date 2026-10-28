@@ -1,0 +1,144 @@
+# -------------------------------------------------------------------
+# Cube: statistic
+# Source Table: pu_stats
+#
+# Description:
+# This cube contains summarized billing, consumption, and revenue statistics
+# for utility services. It is a core fact table for analyzing usage patterns,
+# billed amounts, and operational metrics across cycles, routes, and categories.
+#
+# Joins:
+# - control_type (many_to_one):
+#     • Links statistics to their utility type (e.g., Water, Electric).
+# - stat_code (many_to_one):
+#     • Provides descriptive labels and context for statistical codes.
+#
+# Key Dimensions:
+# - utility_type, cycle, route, category: Core operational hierarchies.
+# - bill_code, stat_code: Business codes for filtering and analysis.
+# - post_month, post_year: Time dimensions for trend reporting.
+#
+# Key Measures:
+# - quantity: Number of records.
+# - consumption: Total consumption units.
+# - demand: Peak demand values.
+# - amount: Total billed amount.
+# -------------------------------------------------------------------
+
+cubes:
+  - name: statistic
+    sql_table: pu_stats
+    data_source: default
+    title: Statistics
+    description: Summarized billing, consumption, and revenue statistics across utility services, used for analyzing usage patterns, billed amounts, and operational metrics.
+
+    joins:
+      - name: controlType
+        relationship: many_to_one
+        sql: "{CUBE.utilityType} = {controlType.utilityType}"
+
+      - name: statisticCode
+        relationship: many_to_one
+        sql: "{CUBE.statCode} = {statisticCode.statCode}"
+
+    dimensions:
+      - name: utilityType
+        sql: utility_type
+        type: string
+        primary_key: true
+        public: true
+        title: Utility Type
+        description: Identifies the utility service type (e.g., Water, Electric) associated with the statistics.
+
+      - name: cycle
+        sql: cycle_
+        type: number
+        primary_key: true
+        public: true
+        title: Cycle
+        description: Billing or operational cycle under which the statistics were recorded.
+
+      - name: route
+        sql: route
+        type: number
+        primary_key: true
+        public: true
+        title: Route
+        description: Route identifier representing a geographic or service-based grouping of accounts.
+
+      - name: category
+        sql: category
+        type: string
+        primary_key: true
+        public: true
+        title: Category
+        description: Customer or service category code for segmenting statistics (e.g., Residential, Commercial).
+
+      - name: billCode
+        sql: bill_code
+        type: string
+        primary_key: true
+        public: true
+        title: Bill Code
+        description: Unique code representing the billing record or transaction type.
+
+      - name: postYearMonth
+        sql: post_yr_month
+        type: time
+        primary_key: true
+        public: true
+        title: Posting Year Month
+        description: Year and month when the billing or statistical record was posted.
+
+      - name: postYear
+        sql: "DATEADD(year, DATEDIFF(year, 0, post_yr_month), 0)"
+        type: time
+        title: Posting Year
+        description: Year when the billing or statistical record was posted.
+
+      - name: statCode
+        sql: stat_code
+        type: string
+        primary_key: true
+        public: true
+        title: Statistic Code
+        description: Identifier for the statistical code associated with the record.
+
+      - name: billCodeDate
+        sql: bill_code_date
+        type: time
+        primary_key: true
+        public: true
+        title: Bill Code Date
+        description: Date or version identifier associated with the bill code.
+
+    measures:
+      - name: quantity
+        sql: count_
+        type: sum
+        title: Quantity
+        description: Total number of records or items in the statistics dataset.
+
+      - name: consumption
+        sql: billed_consum
+        type: sum
+        title: Consumption
+        description: Total units of utility consumed (e.g., kWh, gallons).
+
+      - name: demand
+        sql: billed_demand
+        type: sum
+        title: Demand
+        description: Total peak demand values measured during the billing cycle.
+
+      - name: billedAmount
+        sql: billed_amt
+        type: sum
+        title: Amount
+        description: Total monetary value billed for utility services.
+        drill_members:
+          - statCode
+          - billCode
+          - billCodeDate
+          - postYearMonth
+          - postYear

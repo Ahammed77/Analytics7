@@ -1,0 +1,61 @@
+# Cube: ScheduledNotes
+# Title: Scheduled Notes
+#
+# Description:
+#   Captures scheduled call notes from `csrschdd` so that downstream cubes can
+#   display the comments CSR agents record while planning follow-up actions.
+#
+# Grain:
+#   One row per scheduled-note sequence number for a given call (`csrschdd.call_number`).
+#
+# Key Notes:
+#   - Holds the scheduled notes. 
+#   - Designed to join back to call-level cubes (e.g., `CareCalendar`) via callNumber.
+#
+# Joins:
+#   - Typically joined to call-centric cubes on `callNumber` to enrich call listings with scheduled notes.
+#
+# Key Dimensions:
+#   - callNumber (primary key), sequenceNo (note order), note (note text).
+#
+# Key Measures:
+#   - count: Number of scheduled notes returned for the filtered result set.
+#
+# Typical Use Cases:
+#   - Surface scheduled notes alongside Care Calendar call listings.
+#   - Count how many scheduled notes exist per call.
+#   - Preserve the original note ordering when rendering CSR follow-up details.
+
+cubes:
+  - name: scheduledNotes
+    title: Scheduled Notes
+    description: Scheduled notes associated with the call.
+    sql_table: csrschdd
+    data_source: default
+
+    dimensions:
+      - name: callNumber
+        sql: call_number
+        type: number
+        primary_key: true 
+        title: Call Number
+        description: Unique identifier for the call record.
+
+      - name: sequenceNo
+        sql: sequence_no
+        type: number
+        primary_key: true 
+        title: Sequence Number
+        description: Sequence number for the scheduled note.
+
+      - name: notes
+        sql: notes
+        type: string 
+        title: Notes
+        description: Scheduled notes associated with the call.
+      
+    measures: 
+      - name: count
+        type: count
+        title: Count
+        description: Number of scheduled notes associated with the call.

@@ -1,0 +1,44 @@
+# Cube: controlType
+# Purpose:
+#   Reference (dimension) cube listing utility control types for labeling and filtering.
+#
+# Grain:
+#   One row per utility type code in pu_control_type.
+#
+# Source:
+#   - pu_control_type (code + description of utility types)
+#
+# Exposed Fields:
+#   - utilityType (primary key/code)
+#   - description (business-friendly label)
+#
+# Typical Usage:
+#   - Join from fact cubes to show Water/Gas/Electric labels
+#   - Filter dashboards by utility type
+#
+# Notes:
+#   - No measures; this cube standardizes utility codes across the model.
+
+cubes:
+  - name: controlType
+    sql_table: pu_control_type
+    data_source: default
+    title: Utility Control Types
+    description: >
+      Reference table defining different utility types (such as water, gas, and electricity) 
+      along with their associated rules and descriptions. Used for interpreting utility-related transactions in other cubes.
+
+    dimensions:
+      - name: utilityType
+        sql: utility_type
+        type: string
+        primary_key: true
+        public: true
+        title: Utility Type
+        description: Code representing the type of utility (e.g., W = Water, G = Gas, E = Electricity).
+
+      - name: description
+        sql: description
+        type: string
+        title: Utility Description
+        description: Business-friendly description of the utility type (e.g., for utility_type "E" utility_description will be "ELECTRIC").

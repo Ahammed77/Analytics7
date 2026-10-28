@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.venv/
+.mypy_cache/
+.pytest_cache/
+chatbot/logs/
+chatbot/runs/
+# Cube deployment secrets never belong here
+cube.env
+cube-prod.env

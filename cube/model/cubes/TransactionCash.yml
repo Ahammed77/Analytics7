@@ -1,0 +1,104 @@
+# -------------------------------------------------------------------
+# Cube: transactionCash
+# Base: generalLedgerSummary (extends)
+#
+# Description:
+# This cube extends generalLedgerSummary and applies cash-specific filtering.
+# It identifies cash activity from GL journal entries by mapping pseudo_no to
+# cash stat codes (via pu_stat_xref.cash) and bank GL accounts (via icctranc).
+#
+# Grain:
+#   One row per cash-related journal entry in glsvdata.
+#
+# Inherited from generalLedgerSummary:
+#   - All dimensions (runDate, runDateMonth, runDateYear, journalNumber, etc.)
+#   - All measures (amount)
+#
+# Additional Filters:
+#   - applcode = 'PB' (Payments/Billing)
+#   - journalcode = 'CR' (Cash Receipt)
+#   - pseudo_no IN (cash categories + bank GL accounts)
+#
+# Key Dimensions:
+#   - sequenceId (PK)
+#   - runDate (with month/year rollups) - inherited
+#   - pseudoNumber - cash-specific
+#
+# Measures:
+#   - amount (sum of cash transaction amounts) - inherited
+#
+# Typical Use Cases:
+#   - Monitor daily/monthly/yearly cash inflows
+#   - Reconcile cash receipts to GL/bank
+#   - Track cash trends across processing periods
+#
+# Notes:
+#   - run_date reflects GL processing/posting date (not tender date)
+#   - Cash identification depends on stat_xref and icctranc mappings
+#   - Includes both cash stat codes AND credit card bank accounts
+# -------------------------------------------------------------------
+
+cubes:
+  - name: transactionCash
+    title: Transaction Cash
+    description: >
+      Cash activity transactions from the general ledger, filtered for cash-specific
+      business logic. Helps identify how much cash was collected or handled during
+      a specific period for financial and operational reporting.
+
+    # Extend generalLedgerSummary to inherit its structure
+    extends: generalLedgerSummary
+    
+    # Apply cash-specific filtering
+    sql: >
+      SELECT *
+      FROM glsvdata
+      WHERE applcode = 'PB'
+        AND journalcode = 'CR'
+        AND pseudo_no IN (
+            SELECT cat_pseudo
+            FROM pu_stat_det
+            JOIN pu_stat_xref ON pu_stat_xref.cash = pu_stat_det.stat_code
+            UNION
+            SELECT bank_glacct as cat_pseudo
+            FROM icctranc
+        )
+    
+    data_source: default
+    
+    dimensions:
+      - name: pseudoNumber
+        sql: pseudo_no
+        type: string
+        title: Pseudo Number
+        description: Pseudo account number mapped to cash stat codes or bank GL accounts.
+
+    measures:
+      - name: totalCashAmount
+        sql: amount
+        type: sum
+        title: Total Cash Amount
+        description: Total sum of all cash transaction amounts.
+
+      - name: avgCashAmount
+        sql: amount
+        type: avg
+        title: Average Cash Amount
+        description: Average cash transaction amount.
+
+      - name: maxCashAmount
+        sql: amount
+        type: max
+        title: Maximum Cash Amount
+        description: Highest single cash transaction.
+
+      - name: minCashAmount
+        sql: amount
+        type: min
+        title: Minimum Cash Amount
+        description: Lowest single cash transaction.
+
+      - name: cashTransactionCount
+        type: count
+        title: Cash Transaction Count
+        description: Number of cash transactions.

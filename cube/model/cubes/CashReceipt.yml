@@ -1,0 +1,225 @@
+# -------------------------------------------------------------------
+# Cube: cashReceipt
+# Source Tables: ichappld, ichrecpt
+#
+# Description:
+# This cube tracks cash receipts and how they are applied to customer accounts.
+# It links receipt transactions to GL journal entries and account information 
+# for reconciliation and analysis.
+#
+# Grain:
+#   One row per cash receipt application (ichappld) with receipt and GL context.
+#
+# Source Tables:
+#   - ichappld: Cash receipt application details
+#   - ichrecpt: Cash receipt header information
+#
+# Joins:
+#   - generalLedgerSummary (many_to_one): Links to GL journal data
+#   - account (many_to_one): Links to customer account information
+#
+# Key Dimensions:
+#   - account_no, occupant_code: Customer identifiers
+#   - receipt_no: Receipt identifier
+#   - journal_no: GL journal number
+#   - sequence_no: Application sequence
+#   - From generalLedgerSummary join: run_date, applcode, journalcode
+#
+# Key Measures:
+#   - deposit: Amount of deposit applied
+#   - ret_deposit: Amount of deposit returned
+#   - totalDeposit: Total amount of deposits applied
+#   - avgDeposit: Average amount of deposits applied
+#   - depositCount: Number of deposits applied
+#   - maxDeposit: Maximum amount of a single deposit
+#   - minDeposit: Minimum amount of a single deposit
+#   - totalReturnedDeposit: Total amount of deposits returned
+#   - avgReturnedDeposit: Average amount of deposits returned
+#   - maxReturnedDeposit: Maximum amount of a single returned deposit
+#   - minReturnedDeposit: Minimum amount of a single returned deposit
+#
+# Typical Use Cases:
+#   - Track cash receipt applications by account
+#   - Reconcile cash receipts to GL journals
+#   - Analyze cash receipt activity by date
+#   - Export detailed cash receipt records
+#
+# Notes:
+#   - Filter by generalLedgerSummary.runDate in Power BI for specific date ranges
+#   - Filter by generalLedgerSummary.applicationCode = 'PB' and journalCode = 'CR'
+#   - Filter by deposit > 0 in Power BI to exclude zero amounts
+#   - Filter by ret_deposit > 0 in Power BI to exclude zero amounts
+# -------------------------------------------------------------------
+
+cubes:
+  - name: cashReceipt
+    title: Cash Receipt
+    description: >
+      Detailed view of cash receipts applied to customer accounts,
+      linking cashreceipt transactions to GL journals for reconciliation and analysis.
+    
+    sql: >
+      SELECT 
+        ichappld.account_no,
+        ichappld.occupant_code,
+        ichrecpt.receipt_no,
+        ichrecpt.journal_no,
+        ichappld.sequence_no,
+        ichappld.deposit,
+        ichappld.ret_deposit
+      FROM ichappld
+      INNER JOIN ichrecpt ON ichrecpt.receipt_no = ichappld.receipt_no
+    
+    data_source: default
+
+    joins:
+      - name: generalLedgerSummary
+        relationship: many_to_one
+        sql: "{CUBE.journalNumber} = {generalLedgerSummary.journalNumber}"
+      
+      - name: account
+        relationship: many_to_one
+        sql: "{CUBE.accountNumber} = {account.accountNumber} AND {CUBE.occupantCode} = {account.occupantCode}"
+
+    dimensions:
+      - name: accountNumber
+        sql: account_no
+        type: string
+        public: false
+        title: Account Number
+        description: Customer account number for the deposit application.
+
+      - name: occupantCode
+        sql: occupant_code
+        type: string
+        public: false
+        title: Occupant Code
+        description: Occupant code for the account.
+
+      - name: receiptNumber
+        sql: receipt_no
+        type: string
+        primary_key: true
+        public: true
+        title: Receipt Number
+        description: Unique receipt identifier.
+
+      - name: sequenceNumber
+        sql: sequence_no
+        type: number
+        primary_key: true
+        public: true
+        title: Sequence Number
+        description: Application sequence number (part of composite primary key).
+
+      - name: journalNumber
+        sql: journal_no
+        type: string
+        public: true
+        title: Journal Number
+        description: GL journal number associated with this receipt.
+
+      - name: runDate
+        sql: "{generalLedgerSummary.runDate}"
+        type: time
+        public: true
+        title: Run Date
+        description: Date when the transaction was posted to the GL (from generalLedgerSummary).
+
+      - name: runDateMonth
+        sql: "{generalLedgerSummary.runDateMonth}"
+        type: time
+        title: Run Date Month
+        description: Month of the GL posting date (from generalLedgerSummary).
+
+      - name: runDateYear
+        sql: "{generalLedgerSummary.runDateYear}"
+        type: time
+        title: Run Date Year
+        description: Year of the GL posting date (from generalLedgerSummary).
+
+      - name: applicationCode
+        sql: "{generalLedgerSummary.applicationCode}"
+        type: string
+        title: Application Code
+        description: Application code from GL (typically 'PB' for Payment/Billing).
+
+      - name: journalCode
+        sql: "{generalLedgerSummary.journalCode}"
+        type: string
+        title: Journal Code
+        description: Journal type code from GL (typically 'CR' for Cash Receipt).
+
+      - name: accountName
+        sql: "{account.name}"
+        type: string
+        title: Account Name
+        description: Customer name from the account cube.
+
+      - name: depositAmount
+        sql: deposit
+        type: number
+        public: true
+        title: Deposit Amount
+        description: Amount of deposit applied to the customer account (individual transaction level).
+
+      - name: returnedDepositAmount
+        sql: ret_deposit
+        type: number
+        public: true
+        title: Returned Deposit Amount
+        description: Amount of deposit returned to the customer (individual transaction level).
+
+    measures:
+      - name: totalDeposit
+        sql: deposit
+        type: sum
+        title: Total Deposit Amount
+        description: Total amount of deposits applied to accounts.
+
+      - name: avgDeposit
+        sql: deposit
+        type: avg
+        title: Average Deposit Amount
+        description: Average deposit amount per application.
+
+      - name: depositCount
+        type: count
+        title: Deposit Application Count
+        description: Number of deposit applications.
+
+      - name: maxDeposit
+        sql: deposit
+        type: max
+        title: Maximum Deposit Amount
+        description: Largest single deposit application.
+
+      - name: minDeposit
+        sql: deposit
+        type: min
+        title: Minimum Deposit Amount
+        description: Smallest single deposit application.
+
+      - name: totalReturnedDeposit
+        sql: ret_deposit
+        type: sum
+        title: Total Returned Deposit
+        description: Total amount of deposits returned to customers.
+
+      - name: avgReturnedDeposit
+        sql: ret_deposit
+        type: avg
+        title: Average Returned Deposit
+        description: Average returned deposit amount per transaction.
+
+      - name: maxReturnedDeposit
+        sql: ret_deposit
+        type: max
+        title: Maximum Returned Deposit
+        description: Largest single returned deposit amount.
+
+      - name: minReturnedDeposit
+        sql: ret_deposit
+        type: min
+        title: Minimum Returned Deposit
+        description: Smallest single returned deposit amount.

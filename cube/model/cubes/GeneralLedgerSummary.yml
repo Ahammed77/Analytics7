@@ -1,0 +1,111 @@
+# -------------------------------------------------------------------
+# Cube: generalLedgerSummary
+# Source Table: glsvdata
+#
+# Description:
+# This cube provides general ledger summary data for financial analysis.
+# It contains posted transactions with amounts and dates for tracking
+# financial activity across the system.
+#
+# Joins:
+#   - None defined.
+#
+# Key Dimensions:
+#   - journalNumber: Unique journal identifier
+#   - runDate: Date when the GL transaction was posted
+#   - applicationCode: Application code (e.g., 'PB')
+#   - journalCode: Journal type code (e.g., 'CR')
+#
+# Key Measures:
+#   - amount: Sum of transaction amounts
+# -------------------------------------------------------------------
+
+cubes:
+  - name: generalLedgerSummary
+    title: General Ledger Summary
+    description: >
+      Provides a summary of general ledger transactions, including posted amounts
+      and transaction dates for financial analysis and reporting.
+    
+    sql_table: glsvdata
+    data_source: default
+
+    dimensions:
+      - name: journalNumber
+        sql: jrnl_no
+        type: string
+        primary_key: true
+        title: Journal Number
+        description: Unique journal number identifier.
+
+      - name: runDate
+        sql: run_date
+        type: time
+        title: Run Date
+        description: The date when the general ledger transaction was posted.
+
+      - name: runDateMonth
+        sql: dateadd(month, datediff(month, 0, run_date), 0)
+        type: time
+        title: Run Date Month
+        description: First day of the month based on run_date for monthly grouping.
+
+      - name: runDateYear
+        sql: dateadd(year, datediff(year, 0, run_date), 0)
+        type: time
+        title: Run Date Year
+        description: First day of the year based on run_date for yearly grouping.
+
+      - name: applicationCode
+        sql: applcode
+        type: string
+        title: Application Code
+        description: Application code (e.g., 'PB' for Payment/Billing).
+
+      - name: journalCode
+        sql: journalcode
+        type: string
+        title: Journal Code
+        description: Journal type code (e.g., 'CR' for Cash Receipt).
+
+      - name: pseudoNumber
+        sql: pseudo_no
+        type: string
+        title: Pseudo Number
+        description: Pseudo account number used for GL categorization.
+
+      - name: sequenceId
+        sql: sequence_
+        type: number
+        title: Sequence ID
+        description: Unique sequence identifier for the GL transaction.
+
+    measures:
+      - name: amount
+        sql: amount
+        type: sum
+        title: Total Amount
+        description: Total monetary value of general ledger transactions.
+
+      - name: transactionCount
+        type: count
+        title: Transaction Count
+        description: Number of general ledger transactions.
+
+      - name: avgAmount
+        sql: amount
+        type: avg
+        title: Average Amount
+        description: Average transaction amount.
+
+      - name: maxAmount
+        sql: amount
+        type: max
+        title: Maximum Amount
+        description: Highest single transaction amount.
+
+      - name: minAmount
+        sql: amount
+        type: min
+        title: Minimum Amount
+        description: Lowest single transaction amount.

@@ -1,0 +1,188 @@
+# Cube: cashReceiptAccountDetail
+# Title: Cash Receipts Account Details
+#
+# Description:
+#   This cube provides a detailed, transaction-level view of cash receipts posted in the system.
+#   It is designed for drill-down analysis starting from daily cash receipts summaries
+#   down to individual account-level entries. 
+#
+#   Each row represents a unique cash receipt transaction at the account/occupant level.
+#   Grain is defined by: (account_no, occupant_code, jour_code, jour_no, trans_date).
+#
+# Key Joins:
+#   - account: enriches receipts with account holder details.
+#   - generalLedgerSummary: links to GL journal data (run_date, applcode, journalcode)
+#
+# Key Dimensions:
+#   - account_number, occupant_code, account_name
+#   - transaction_date with derived time breakdowns (day, month, weekday).
+#   - journal_code, journal_number
+#   - transaction_description
+#   - From generalLedgerSummary: run_date, application_code, journal_code
+#
+# Key Measures:
+#   - transaction_amount: The sum of individual transaction amounts.
+#   - total_transaction_amount: The aggregated total across all receipts.
+#   - count: Number of transactions recorded.
+#
+# Notes:
+#   - Only transactions where jour_code = 'CR' are included (Cash Receipts).
+#   - Filter by generalLedgerSummary.runDate in Power BI for specific dates
+#   - Filter by generalLedgerSummary.applicationCode = 'PB' and journalCode = 'CR'
+#
+cubes:
+  - name: cashReceiptAccountDetail
+    title: Cash Receipts Account Details
+    description: Detailed view of individual cash receipt transactions for drill-down analysis from daily cash receipts summaries.
+
+    sql: >
+      SELECT
+        pb.account_no,
+        pb.occupant_code,
+        pa.name,
+        pb.trans_date,
+        pb.jour_code,
+        pb.jour_no,
+        pb.trans_amt,
+        ad.ar_descript
+      FROM pu_balance_hist pb
+      INNER JOIN pu_ar_descript ad ON pb.desc_code = ad.ar_code
+      INNER JOIN pu_account pa ON pb.account_no = pa.account_no AND pb.occupant_code = pa.occupant_code
+      WHERE pb.jour_code = 'CR'
+
+    data_source: default
+
+    joins:
+      - name: account
+        relationship: many_to_one
+        sql: "{CUBE}.account_no = {account.accountNumber} AND {CUBE}.occupant_code = {account.occupantCode}"
+
+      - name: generalLedgerSummary
+        relationship: many_to_one
+        sql: "{CUBE}.journal_number = {generalLedgerSummary.journalNumber}"
+
+    dimensions:
+      - name: accountNumber
+        sql: account_no
+        type: string
+        primary_key: true
+        title: Account Number
+        description: The customer account number associated with the cash receipt.
+
+      - name: occupantCode
+        sql: occupant_code
+        type: string
+        primary_key: true
+        title: Occupant Code
+        description: The occupant code within the account.
+
+      - name: transactionDate
+        sql: trans_date
+        type: time
+        title: Transaction Date
+        description: The date when the cash receipt transaction was recorded.
+
+      - name: journalCode
+        sql: jour_code
+        type: string
+        title: Journal Code
+        description: The journal code (e.g., 'CR' for Cash Receipts) under which the transaction was posted.
+
+      - name: journalNumber
+        sql: jour_no
+        type: string
+        primary_key: true
+        title: Journal Number
+        description: The journal number for the transaction.
+
+      - name: accountName
+        sql: name
+        type: string
+        title: Account Holder Name
+        description: The name of the customer or entity associated with the account.
+
+      - name: arDescription
+        sql: ar_descript
+        type: string
+        title: AR Description
+        description: A brief description of the cash receipt transaction.
+
+      - name: dayOfMonth
+        sql: DAY(trans_date)
+        type: string
+        title: Day of Month
+        description: Day of the month (1-31).
+
+      - name: monthName
+        sql: UPPER(LEFT(DATENAME(MONTH, trans_date), 3))
+        type: string
+        title: Month Name
+        description: Three-letter month abbreviation (JAN, FEB, etc.).
+
+      - name: dayOfWeek
+        sql: UPPER(LEFT(DATENAME(WEEKDAY, trans_date), 3))
+        type: string
+        title: Day of Week
+        description: Three-letter day abbreviation (MON, TUE, etc.).
+
+      # Dimensions from generalLedgerSummary join
+      - name: runDate
+        sql: "{generalLedgerSummary.runDate}"
+        type: time
+        public: true
+        title: GL Run Date
+        description: Date when the transaction was posted to the GL (from generalLedgerSummary).
+
+      - name: runDateMonth
+        sql: "{generalLedgerSummary.runDateMonth}"
+        type: time
+        title: GL Run Date Month
+        description: Month of the GL posting date (from generalLedgerSummary).
+
+      - name: runDateYear
+        sql: "{generalLedgerSummary.runDateYear}"
+        type: time
+        title: GL Run Date Year
+        description: Year of the GL posting date (from generalLedgerSummary).
+
+      - name: applicationCode
+        sql: "{generalLedgerSummary.applicationCode}"
+        type: string
+        title: Application Code
+        description: Application code from GL (typically 'PB' for Payment/Billing).
+
+      - name: glJournalCode
+        sql: "{generalLedgerSummary.journalCode}"
+        type: string
+        title: GL Journal Code
+        description: Journal type code from GL (typically 'CR' for Cash Receipt).
+
+    measures:
+      - name: transactionAmount
+        sql: trans_amt
+        type: sum
+        title: Transaction Amount
+        description: The individual amount of a cash receipt transaction.
+
+      - name: count
+        type: count
+        title: Transaction Count
+        description: The number of individual cash receipt transactions.
+
+      - name: avgTransactionAmount
+        sql: trans_amt
+        type: avg
+        title: Average Transaction Amount
+        description: Average amount per transaction.
+
+      - name: maxTransactionAmount
+        sql: trans_amt
+        type: max
+        title: Maximum Transaction Amount
+        description: Largest single transaction amount.
+
+      - name: minTransactionAmount
+        sql: trans_amt
+        type: min
+        title: Minimum Transaction Amount
+        description: Smallest single transaction amount.

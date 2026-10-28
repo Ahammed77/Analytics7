@@ -1,0 +1,1251 @@
+{
+  "cubes": {
+    "account": {
+      "description": "This cube represents customer accounts from the pu_account table in the CIS system.",
+      "joins": {},
+      "members": {
+        "account.accountNumber": {
+          "description": "The account number.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "account_no",
+          "synonyms": [
+            "account",
+            "account no",
+            "account #"
+          ],
+          "title": "Account Number",
+          "type": "string"
+        },
+        "account.customerClass": {
+          "description": "Whether the account is residential, commercial or industrial.",
+          "issue": null,
+          "kind": "dimension",
+          "known_values": {
+            "COM": "Commercial",
+            "IND": "Industrial",
+            "RES": "Residential"
+          },
+          "note": "Not in the Cube YAML. Added for the commercial-accounts follow-up; the CIS column name (cust_class) is an assumption to confirm.",
+          "origin": "overlay",
+          "public": true,
+          "resolved": true,
+          "sql": "cust_class",
+          "synonyms": [],
+          "title": "Customer Class",
+          "type": "string"
+        },
+        "account.debtorNumber": {
+          "description": "Reference number linking to debtor information and billing details.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "debtor_no",
+          "synonyms": [],
+          "title": "Debtor Number",
+          "type": "string"
+        },
+        "account.id": {
+          "description": "Unique identifier combining account number and occupant code (account_no-occupant_code).",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": false,
+          "resolved": true,
+          "sql": "CONCAT((account_no),'-',(occupant_code))",
+          "synonyms": [],
+          "title": "Account ID",
+          "type": "string"
+        },
+        "account.name": {
+          "description": "The name associated with the account.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "name",
+          "synonyms": [
+            "customer",
+            "customer name",
+            "account holder"
+          ],
+          "title": "Account Name",
+          "type": "string"
+        },
+        "account.occupantCode": {
+          "description": "Code identifying the specific occupant linked to the account.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": false,
+          "resolved": true,
+          "sql": "occupant_code",
+          "synonyms": [],
+          "title": "Occupant Code",
+          "type": "string"
+        },
+        "account.serviceAddress": {
+          "description": "Complete service address combining street number, modifier, and street name.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "CONCAT_WS(' ', serv_street_no,serv_street_mod,serv_street)",
+          "synonyms": [
+            "address",
+            "service address",
+            "street address",
+            "location"
+          ],
+          "title": "Service Address",
+          "type": "string"
+        },
+        "account.serviceCity": {
+          "description": "The city where the service is located.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "serv_city",
+          "synonyms": [],
+          "title": "City",
+          "type": "string"
+        },
+        "account.serviceProvince": {
+          "description": "The province or state where the service is located.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "serv_province",
+          "synonyms": [],
+          "title": "Province",
+          "type": "string"
+        },
+        "account.serviceZipAndPostalCode": {
+          "description": "The postal or zip code for the service location.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "CASE WHEN serv_postal_zip = '00000     ' THEN '' ELSE serv_postal_zip END",
+          "synonyms": [],
+          "title": "Postal Code",
+          "type": "string"
+        }
+      },
+      "source_sql": "SELECT * FROM pu_account",
+      "title": "Account"
+    },
+    "accountBalance": {
+      "description": "This cube summarizes customer account balances from the pu_account_pay table, filtered to include only active records",
+      "joins": {
+        "account": {
+          "on": "\"accountBalance\".\"accountNumber\" = \"account\".\"accountNumber\" AND \"accountBalance\".\"occupantCode\" = \"account\".\"occupantCode\"",
+          "relationship": "many_to_one"
+        }
+      },
+      "members": {
+        "accountBalance.accountNumber": {
+          "description": "The primary account number for the customer (part of composite primary key).",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": false,
+          "resolved": true,
+          "sql": "account_no",
+          "synonyms": [],
+          "title": "Account Number",
+          "type": "string"
+        },
+        "accountBalance.avgBalance": {
+          "description": "Average of the total balance across all records in the filtered dataset.",
+          "issue": null,
+          "kind": "measure",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "COALESCE(current_balance,0) + COALESCE(overdue_balance,0) + COALESCE(latecharge_balance,0) + COALESCE(interest_balance,0)",
+          "synonyms": [],
+          "title": "Average Balance",
+          "type": "avg"
+        },
+        "accountBalance.currentBalance": {
+          "description": "The current outstanding balance that is not yet overdue.",
+          "issue": null,
+          "kind": "measure",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "current_balance",
+          "synonyms": [
+            "current amount",
+            "not yet due"
+          ],
+          "title": "Current Balance",
+          "type": "sum"
+        },
+        "accountBalance.dueDate": {
+          "description": "The date when payment for this balance is due.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "due_date",
+          "synonyms": [],
+          "title": "Payment Due Date",
+          "type": "time"
+        },
+        "accountBalance.dueDateMonth": {
+          "description": "The month of the payment due date.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "date_trunc('month', due_date)",
+          "synonyms": [],
+          "title": "Due Date Month",
+          "type": "time"
+        },
+        "accountBalance.dueDateYear": {
+          "description": "The year of the payment due date.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "date_trunc('year', due_date)",
+          "synonyms": [],
+          "title": "Due Date Year",
+          "type": "time"
+        },
+        "accountBalance.endDate": {
+          "description": "The end date of the billing period for this balance record.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "end_date",
+          "synonyms": [],
+          "title": "Billing Period End Date",
+          "type": "time"
+        },
+        "accountBalance.endDateMonth": {
+          "description": "The month of the billing period end date.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "date_trunc('month', end_date)",
+          "synonyms": [],
+          "title": "Billing End Month",
+          "type": "time"
+        },
+        "accountBalance.endDateYear": {
+          "description": "The year of the billing period end date.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "date_trunc('year', end_date)",
+          "synonyms": [],
+          "title": "Billing End Year",
+          "type": "time"
+        },
+        "accountBalance.interestBalance": {
+          "description": "Interest charges applied to outstanding balances.",
+          "issue": null,
+          "kind": "measure",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "interest_balance",
+          "synonyms": [],
+          "title": "Interest Balance",
+          "type": "sum"
+        },
+        "accountBalance.lastBillAmount": {
+          "description": "Total amount billed in the last billing cycle for this account and utility type.",
+          "issue": null,
+          "kind": "measure",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "last_bill_amount",
+          "synonyms": [
+            "last bill",
+            "latest bill"
+          ],
+          "title": "Last Bill Amount",
+          "type": "sum"
+        },
+        "accountBalance.lateChargeBalance": {
+          "description": "Total late fees and penalties applied to overdue amounts.",
+          "issue": null,
+          "kind": "measure",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "latecharge_balance",
+          "synonyms": [
+            "late fees",
+            "penalties"
+          ],
+          "title": "Late Charge Balance",
+          "type": "sum"
+        },
+        "accountBalance.occupantCode": {
+          "description": "Code identifying the specific occupant linked to the account (part of composite primary key).",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": false,
+          "resolved": true,
+          "sql": "occupant_code",
+          "synonyms": [],
+          "title": "Occupant Code",
+          "type": "string"
+        },
+        "accountBalance.overdueBalance": {
+          "description": "The amount that is past due and requires immediate attention.",
+          "issue": null,
+          "kind": "measure",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "overdue_balance",
+          "synonyms": [
+            "past due",
+            "past due balance",
+            "past-due",
+            "arrears",
+            "overdue",
+            "overdue amount",
+            "amount owing past due"
+          ],
+          "title": "Overdue Balance",
+          "type": "sum"
+        },
+        "accountBalance.startDate": {
+          "description": "The start date of the billing period for this balance record.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "start_date",
+          "synonyms": [],
+          "title": "Billing Period Start Date",
+          "type": "time"
+        },
+        "accountBalance.startDateMonth": {
+          "description": "The month of the billing period start date.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "date_trunc('month', start_date)",
+          "synonyms": [],
+          "title": "Billing Start Month",
+          "type": "time"
+        },
+        "accountBalance.startDateYear": {
+          "description": "The year of the billing period start date.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "date_trunc('year', start_date)",
+          "synonyms": [],
+          "title": "Billing Start Year",
+          "type": "time"
+        },
+        "accountBalance.totalBalance": {
+          "description": "Combined total of all balance components (current + overdue + late charges + interest).",
+          "issue": null,
+          "kind": "measure",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "COALESCE(current_balance,0) + COALESCE(overdue_balance,0) + COALESCE(latecharge_balance,0) + COALESCE(interest_balance,0)",
+          "synonyms": [
+            "balance",
+            "total owed",
+            "amount owed",
+            "owes",
+            "total due"
+          ],
+          "title": "Total Balance",
+          "type": "sum"
+        },
+        "accountBalance.utilityType": {
+          "description": "Type of utility service (e.g., water, electricity, gas) for this balance record (part of composite primary key).",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "utility_type",
+          "synonyms": [],
+          "title": "Utility Type",
+          "type": "string"
+        }
+      },
+      "source_sql": "SELECT * FROM pu_account_pay WHERE end_date IS NULL",
+      "title": "Account Balance"
+    },
+    "callTypeAnalysis": {
+      "description": "Helps you understand what types of customer service calls are coming in and how many are being logged over time over a specific CSR Agent. Useful for tracking trends, identifying frequent call topics, and improving customer support.",
+      "joins": {
+        "account": {
+          "on": "\"callTypeAnalysis\".\"accountNumber\" = \"account\".\"accountNumber\" AND \"callTypeAnalysis\".\"occupantCode\" = \"account\".\"occupantCode\"",
+          "relationship": "many_to_one"
+        }
+      },
+      "members": {
+        "callTypeAnalysis.accountName": {
+          "description": "Name of the customer account associated with the call.",
+          "issue": "references another cube (account.name); cross-cube members are not supported",
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": false,
+          "sql": null,
+          "synonyms": [],
+          "title": "Account Name",
+          "type": "string"
+        },
+        "callTypeAnalysis.accountNumber": {
+          "description": "The account number.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": false,
+          "resolved": true,
+          "sql": "account_no",
+          "synonyms": [],
+          "title": "Account Number",
+          "type": "string"
+        },
+        "callTypeAnalysis.callCode": {
+          "description": "Maps to csrcalld.callcode.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "callcode",
+          "synonyms": [],
+          "title": "Call Code",
+          "type": "string"
+        },
+        "callTypeAnalysis.callNumber": {
+          "description": "Unique identifier for the call record.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "call_number",
+          "synonyms": [],
+          "title": "Call Number",
+          "type": "string"
+        },
+        "callTypeAnalysis.callStatus": {
+          "description": "Status of the call (e.g., Scheduled, Completed).",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "callstatus",
+          "synonyms": [],
+          "title": "Call Status",
+          "type": "string"
+        },
+        "callTypeAnalysis.callStatusDescription": {
+          "description": "Short description of the call status.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "statdesc",
+          "synonyms": [],
+          "title": "Call Status Description",
+          "type": "string"
+        },
+        "callTypeAnalysis.callType": {
+          "description": "Type of customer service call (e.g., MOVEIN, RECON, AUTO).",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "calltype",
+          "synonyms": [
+            "type of call",
+            "call category"
+          ],
+          "title": "Call Type",
+          "type": "string"
+        },
+        "callTypeAnalysis.callTypeDescription": {
+          "description": "Short description of the call type.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "calldesc",
+          "synonyms": [],
+          "title": "Call Type Description",
+          "type": "string"
+        },
+        "callTypeAnalysis.completedOn": {
+          "description": "Timestamp of when the call was completed.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "completedon",
+          "synonyms": [],
+          "title": "Completed On",
+          "type": "time"
+        },
+        "callTypeAnalysis.createdBy": {
+          "description": "The CSR who created the call.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "createdby",
+          "synonyms": [],
+          "title": "CSR Agent",
+          "type": "string"
+        },
+        "callTypeAnalysis.createdOn": {
+          "description": "Timestamp of when the call record was created in the system.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "createdon",
+          "synonyms": [],
+          "title": "Call Created Date",
+          "type": "time"
+        },
+        "callTypeAnalysis.currentStatus": {
+          "description": "The current status of the call (alias for callStatusDescription).",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "statdesc",
+          "synonyms": [],
+          "title": "Current Status of the Call",
+          "type": "string"
+        },
+        "callTypeAnalysis.description": {
+          "description": "Human-readable description of the call type from the reference table.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "description",
+          "synonyms": [],
+          "title": "Call Type Description",
+          "type": "string"
+        },
+        "callTypeAnalysis.isServiceOrder": {
+          "description": "Indicates whether the CSR call is a service order.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "CASE WHEN (ordercode) IS NULL THEN 'FALSE' ELSE 'TRUE' END",
+          "synonyms": [],
+          "title": "Is Service Order",
+          "type": "string"
+        },
+        "callTypeAnalysis.month": {
+          "description": "Abbreviated name of the month extracted from the call creation date.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "CASE EXTRACT(MONTH FROM createdon) WHEN 1 THEN 'JAN' WHEN 2 THEN 'FEB' WHEN 3 THEN 'MAR' WHEN 4 THEN 'APR' WHEN 5 THEN 'MAY' WHEN 6 THEN 'JUN' WHEN 7 THEN 'JUL' WHEN 8 THEN 'AUG' WHEN 9 THEN 'SEP' WHEN 10 THEN 'OCT' WHEN 11 THEN 'NOV' WHEN 12 THEN 'DEC' END",
+          "synonyms": [],
+          "title": "Call Month Name",
+          "type": "string"
+        },
+        "callTypeAnalysis.occupantCode": {
+          "description": "The occupant code.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": false,
+          "resolved": true,
+          "sql": "occupant_code",
+          "synonyms": [],
+          "title": "Occupant Code",
+          "type": "string"
+        },
+        "callTypeAnalysis.orderCode": {
+          "description": "Maps to csrcalld.ordercode.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "ordercode",
+          "synonyms": [],
+          "title": "Order Code",
+          "type": "string"
+        },
+        "callTypeAnalysis.orderNo": {
+          "description": "Order number associated with the call (legacy ASP queries 1-2).",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "order_no",
+          "synonyms": [],
+          "title": "Order Number",
+          "type": "string"
+        },
+        "callTypeAnalysis.scheduledOn": {
+          "description": "Timestamp of when the call is scheduled.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "scheduledon",
+          "synonyms": [],
+          "title": "Scheduled On",
+          "type": "time"
+        },
+        "callTypeAnalysis.summaryDescription": {
+          "description": "Short summary of the call type (alias for callTypeDescription).",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "calldesc",
+          "synonyms": [],
+          "title": "Call Summary Description",
+          "type": "string"
+        },
+        "callTypeAnalysis.totalCalls": {
+          "description": "Total number of call records logged in the system.",
+          "issue": null,
+          "kind": "measure",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "",
+          "synonyms": [
+            "number of calls",
+            "call count",
+            "call volume"
+          ],
+          "title": "Total Calls",
+          "type": "count"
+        }
+      },
+      "source_sql": "SELECT calld.call_number AS call_number, calld.createdon AS createdon, calld.calltype AS calltype, calld.callcode AS callcode, calld.order_no AS order_no, calld.ordercode AS ordercode, calltype.description AS description, calld.createdby AS createdby, calld.account_no AS account_no, calld.occupant_code AS occupant_code, calld.scheduledon AS scheduledon, calld.completedon AS completedon, calld.callstatus AS callstatus, calltype.shortdesc AS calldesc, callstatus.shortdesc AS statdesc FROM csrcalld calld LEFT JOIN csrctypr calltype ON calld.calltype = calltype.calltype AND calld.callcode = calltype.callcode LEFT JOIN csrstatc callstatus ON calld.callstatus = callstatus.callstatus",
+      "title": "Call Type Analysis"
+    },
+    "cashBatchData": {
+      "description": "Tracks batches of cash transactions submitted by users. Useful for understanding when and by whom cash entries were submitted. Ideal for reconciling daily or periodic cash activity.",
+      "joins": {},
+      "members": {
+        "cashBatchData.batchId": {
+          "description": "Identifier for the batch in which the transaction is grouped.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "batchid",
+          "synonyms": [],
+          "title": "Batch ID",
+          "type": "string"
+        },
+        "cashBatchData.batchName": {
+          "description": "This represents the name of the batch.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "login",
+          "synonyms": [],
+          "title": "Batch Name",
+          "type": "string"
+        },
+        "cashBatchData.cashierUsername": {
+          "description": "The identifier for the cashier who performed the transaction.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "userid",
+          "synonyms": [
+            "cashier",
+            "teller",
+            "user"
+          ],
+          "title": "Cashier Username",
+          "type": "string"
+        },
+        "cashBatchData.entryNumber": {
+          "description": "The unique entry number for each transaction record.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "entry_no",
+          "synonyms": [],
+          "title": "Entry Number",
+          "type": "string"
+        },
+        "cashBatchData.tenderedAmount": {
+          "description": "Sum of tendered amounts across transactions.",
+          "issue": null,
+          "kind": "measure",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "tendered_amt",
+          "synonyms": [
+            "cash taken",
+            "cash collected",
+            "amount collected",
+            "takings"
+          ],
+          "title": "Amount Tendered",
+          "type": "sum"
+        },
+        "cashBatchData.transactionDate": {
+          "description": "The exact date and time when the transaction occurred.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "trans_date",
+          "synonyms": [],
+          "title": "Transaction Date",
+          "type": "time"
+        },
+        "cashBatchData.transactionMonth": {
+          "description": "The month of the transaction date, used for monthly aggregation.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "date_trunc('month', trans_date)",
+          "synonyms": [],
+          "title": "Transaction Month",
+          "type": "time"
+        },
+        "cashBatchData.transactionYear": {
+          "description": "The year of the transaction date, used for yearly aggregation.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "date_trunc('year', trans_date)",
+          "synonyms": [],
+          "title": "Transaction Year",
+          "type": "time"
+        }
+      },
+      "source_sql": "select batchid, userid, trans_date, tendered_amt, entry_no, icpcashm.login AS login FROM icpcashm JOIN icphdrh ON icphdrh.login = icpcashm.login",
+      "title": "Cash Batch Data"
+    },
+    "cashDetail": {
+      "description": "Provides a detailed list of individual cash transactions. Best used when exporting data to Excel/CSV or reviewing all transactions for a specific day (Run Date). Great for audits or detailed reporting.",
+      "joins": {
+        "account": {
+          "on": "\"cashDetail\".\"accountNumber\" = \"account\".\"accountNumber\" AND \"cashDetail\".\"occupantCode\" = \"account\".\"occupantCode\"",
+          "relationship": "many_to_one"
+        }
+      },
+      "members": {
+        "cashDetail.accountNumber": {
+          "description": "Internal account number associated with the cash balance entry.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": false,
+          "resolved": true,
+          "sql": "account_no",
+          "synonyms": [],
+          "title": "Account Number",
+          "type": "string"
+        },
+        "cashDetail.arDescription": {
+          "description": "Description of the accounts receivable transaction.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "ar_descript",
+          "synonyms": [],
+          "title": "AR Description",
+          "type": "string"
+        },
+        "cashDetail.journalNumber": {
+          "description": "Journal entry number from the general ledger.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "jour_no",
+          "synonyms": [],
+          "title": "Journal Number",
+          "type": "string"
+        },
+        "cashDetail.occupantCode": {
+          "description": "Identifier for the occupant tied to the account; used in filtering and joins.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": false,
+          "resolved": true,
+          "sql": "occupant_code",
+          "synonyms": [],
+          "title": "Occupant Code",
+          "type": "string"
+        },
+        "cashDetail.runDate": {
+          "description": "Date when the cash balance snapshot was generated for reporting.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "run_date",
+          "synonyms": [
+            "day",
+            "date"
+          ],
+          "title": "Run Date",
+          "type": "time"
+        },
+        "cashDetail.sequenceId": {
+          "description": "Unique sequence number for the transaction record from balance history.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "sequence_",
+          "synonyms": [],
+          "title": "Sequence ID",
+          "type": "number"
+        },
+        "cashDetail.transactionAmount": {
+          "description": "Total amount of the cash balance transaction; summed across records.",
+          "issue": null,
+          "kind": "measure",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "trans_amt",
+          "synonyms": [
+            "cash receipt amount",
+            "payment amount",
+            "receipts"
+          ],
+          "title": "Transaction Amount",
+          "type": "sum"
+        },
+        "cashDetail.transactionDate": {
+          "description": "Date when the transaction actually occurred.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "trans_date",
+          "synonyms": [],
+          "title": "Transaction Date",
+          "type": "time"
+        },
+        "cashDetail.transactionMonth": {
+          "description": "First day of the month for the transaction date, used for monthly rollups.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "date_trunc('month', trans_date)",
+          "synonyms": [],
+          "title": "Transaction Month",
+          "type": "time"
+        },
+        "cashDetail.transactionYear": {
+          "description": "First day of the year for the transaction date, used for yearly rollups.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "date_trunc('year', trans_date)",
+          "synonyms": [],
+          "title": "Transaction Year",
+          "type": "time"
+        }
+      },
+      "source_sql": "SELECT pu_balance_hist.account_no as account_no, pu_balance_hist.occupant_code as occupant_code, run_date, trans_date, jour_code, jour_no, trans_amt, ar_descript, pu_balance_hist.sequence_ FROM pu_balance_hist JOIN pu_ar_descript ON pu_balance_hist.desc_code = pu_ar_descript.ar_code JOIN glsvdata ON pu_balance_hist.jour_no = glsvdata.jrnl_no WHERE pu_balance_hist.jour_code = 'CR' AND glsvdata.applcode = 'PB' AND glsvdata.journalcode = 'CR'",
+      "title": "Cash Detail"
+    },
+    "csrActivityAnalysis": {
+      "description": "An analytical view of CSR calls, grouped by year and the user (creator) who logged the call. Useful for tracking CSR workload and activity over time.",
+      "joins": {
+        "account": {
+          "on": "\"csrActivityAnalysis\".\"accountNumber\" = \"account\".\"accountNumber\" AND \"csrActivityAnalysis\".\"occupantCode\" = \"account\".\"occupantCode\"",
+          "relationship": "many_to_one"
+        }
+      },
+      "members": {
+        "csrActivityAnalysis.accountName": {
+          "description": "Name of the customer account associated with the call.",
+          "issue": "references another cube (account.name); cross-cube members are not supported",
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": false,
+          "sql": null,
+          "synonyms": [],
+          "title": "Account Name",
+          "type": "string"
+        },
+        "csrActivityAnalysis.accountNumber": {
+          "description": "The account number.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": false,
+          "resolved": true,
+          "sql": "account_no",
+          "synonyms": [],
+          "title": "Account Number",
+          "type": "string"
+        },
+        "csrActivityAnalysis.callCode": {
+          "description": "Maps to csrcalld.callcode.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "callcode",
+          "synonyms": [],
+          "title": "Call Code",
+          "type": "string"
+        },
+        "csrActivityAnalysis.callNumber": {
+          "description": "Unique identifier for the call record.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "call_number",
+          "synonyms": [],
+          "title": "Call Number",
+          "type": "string"
+        },
+        "csrActivityAnalysis.callStatus": {
+          "description": "Status of the call (e.g., Scheduled, Completed).",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "callstatus",
+          "synonyms": [],
+          "title": "Call Status",
+          "type": "string"
+        },
+        "csrActivityAnalysis.callStatusDescription": {
+          "description": "Short description of the call status.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "statdesc",
+          "synonyms": [],
+          "title": "Call Status Description",
+          "type": "string"
+        },
+        "csrActivityAnalysis.callType": {
+          "description": "Type of customer service call (e.g., MOVEIN, RECON, AUTO).",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "calltype",
+          "synonyms": [],
+          "title": "Call Type",
+          "type": "string"
+        },
+        "csrActivityAnalysis.callTypeDescription": {
+          "description": "Short description of the call type.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "calldesc",
+          "synonyms": [],
+          "title": "Call Type Description",
+          "type": "string"
+        },
+        "csrActivityAnalysis.completedOn": {
+          "description": "Timestamp of when the call was completed.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "completedon",
+          "synonyms": [],
+          "title": "Completed on",
+          "type": "time"
+        },
+        "csrActivityAnalysis.createdBy": {
+          "description": "The user (CSR agent) who created or logged the call record.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "createdby",
+          "synonyms": [
+            "CSR",
+            "agent",
+            "CSR agent",
+            "rep"
+          ],
+          "title": "CSR Agent User",
+          "type": "string"
+        },
+        "csrActivityAnalysis.createdOn": {
+          "description": "Timestamp of when the call record was created in the system.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "createdon",
+          "synonyms": [],
+          "title": "Call Created Date",
+          "type": "time"
+        },
+        "csrActivityAnalysis.currentStatus": {
+          "description": "The current status of the call (alias for callStatusDescription).",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "statdesc",
+          "synonyms": [],
+          "title": "Current Status of the Call",
+          "type": "string"
+        },
+        "csrActivityAnalysis.description": {
+          "description": "Human-readable description of the call type from the reference table.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "description",
+          "synonyms": [],
+          "title": "Call Type Description",
+          "type": "string"
+        },
+        "csrActivityAnalysis.isServiceOrder": {
+          "description": "Indicates whether the CSR call is a service order.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "CASE WHEN (ordercode) IS NULL THEN 'FALSE' ELSE 'TRUE' END",
+          "synonyms": [],
+          "title": "Is Service Order",
+          "type": "string"
+        },
+        "csrActivityAnalysis.month": {
+          "description": "Abbreviated name of the month extracted from the call creation date.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "CASE EXTRACT(MONTH FROM createdon) WHEN 1 THEN 'JAN' WHEN 2 THEN 'FEB' WHEN 3 THEN 'MAR' WHEN 4 THEN 'APR' WHEN 5 THEN 'MAY' WHEN 6 THEN 'JUN' WHEN 7 THEN 'JUL' WHEN 8 THEN 'AUG' WHEN 9 THEN 'SEP' WHEN 10 THEN 'OCT' WHEN 11 THEN 'NOV' WHEN 12 THEN 'DEC' END",
+          "synonyms": [],
+          "title": "Call Month Name",
+          "type": "string"
+        },
+        "csrActivityAnalysis.occupantCode": {
+          "description": "The occupant code.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": false,
+          "resolved": true,
+          "sql": "occupant_code",
+          "synonyms": [],
+          "title": "Occupant Code",
+          "type": "string"
+        },
+        "csrActivityAnalysis.orderCode": {
+          "description": "Maps to csrcalld.ordercode.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "ordercode",
+          "synonyms": [],
+          "title": "Order Code",
+          "type": "string"
+        },
+        "csrActivityAnalysis.orderNo": {
+          "description": "Order number associated with the call (legacy ASP queries 1-2).",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "order_no",
+          "synonyms": [],
+          "title": "Order Number",
+          "type": "string"
+        },
+        "csrActivityAnalysis.scheduledOn": {
+          "description": "Timestamp of when the call is scheduled.",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "scheduledon",
+          "synonyms": [],
+          "title": "Scheduled On",
+          "type": "time"
+        },
+        "csrActivityAnalysis.summaryDescription": {
+          "description": "Short summary of the call type (alias for callTypeDescription).",
+          "issue": null,
+          "kind": "dimension",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "calldesc",
+          "synonyms": [],
+          "title": "Call Summary Description",
+          "type": "string"
+        },
+        "csrActivityAnalysis.totalCalls": {
+          "description": "Total number of call records logged in the system.",
+          "issue": null,
+          "kind": "measure",
+          "origin": "yaml",
+          "public": true,
+          "resolved": true,
+          "sql": "",
+          "synonyms": [
+            "number of calls",
+            "calls logged",
+            "call count"
+          ],
+          "title": "Total Calls",
+          "type": "count"
+        }
+      },
+      "source_sql": "SELECT calld.call_number AS call_number, calld.createdon AS createdon, calld.calltype AS calltype, calld.callcode AS callcode, calld.order_no AS order_no, calld.ordercode AS ordercode, calltype.description AS description, calld.createdby AS createdby, calld.account_no AS account_no, calld.occupant_code AS occupant_code, calld.scheduledon AS scheduledon, calld.completedon AS completedon, calld.callstatus AS callstatus, calltype.shortdesc AS calldesc, callstatus.shortdesc AS statdesc FROM csrcalld calld LEFT JOIN csrctypr calltype ON calld.calltype = calltype.calltype AND calld.callcode = calltype.callcode LEFT JOIN csrstatc callstatus ON calld.callstatus = callstatus.callstatus",
+      "title": "CSR Activity Analysis"
+    }
+  },
+  "missing_cubes": [
+    "keyAccount"
+  ],
+  "sources": {
+    "yaml_files": {
+      "AccountBalance.yml": "2b6b3bde181d",
+      "CSRActivityAnalysis.yml": "3992c539e577",
+      "CallTypeAnalysis.yml": "629aa1b0fa49",
+      "CareCalendar.yml": "bca700704b41",
+      "CashBatchData.yml": "7b6951e59ccd",
+      "CashDetail.yml": "4d5ab49908f2",
+      "CashReceipt.yml": "1a7ed5556644",
+      "CashReceiptAccountDetail.yml": "c5b5297cb1b3",
+      "CompletedNotes.yml": "3d94110d3074",
+      "ControlType.yml": "6824dafe0412",
+      "CurrentCashierActivity.yml": "5dca3eab1a65",
+      "GeneralLedgerSummary.yml": "81b8b8c4e500",
+      "ScheduledNotes.yml": "4e09fb693352",
+      "Statistic.yml": "898fc9940656",
+      "StatisticCode.yml": "3a1bba624e22",
+      "TransactionAccountReceivable.yml": "65c981c17068",
+      "TransactionCash.yml": "edcce832c2e5",
+      "TransactionDeposit.yml": "00e8d2064016",
+      "account.yml": "242b9e67e6a2"
+    }
+  },
+  "unresolved": [
+    {
+      "issue": "references another cube (account.name); cross-cube members are not supported",
+      "member": "callTypeAnalysis.accountName"
+    },
+    {
+      "issue": "references another cube (account.name); cross-cube members are not supported",
+      "member": "csrActivityAnalysis.accountName"
+    }
+  ],
+  "version": "6b6a11fac0e0"
+}

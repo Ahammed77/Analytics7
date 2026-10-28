@@ -1,0 +1,83 @@
+# Cube: account
+# This cube represents customer accounts from the pu_account table in the CIS system.
+#
+# Each account is uniquely identified by a combination of account_no and occupant_code.
+# The cube captures key customer details, including account identifiers, debtor references,
+# and service location information (address, city, province, and zipcode).
+# Invalid placeholder zip codes ('00000     ') are cleaned up for reporting accuracy.
+#
+# This cube is useful for identifying and grouping customers, linking accounts to balances
+# and usage, and supporting reporting based on geographic or debtor-related attributes.
+#
+# Joins:
+#   - None defined.
+# Key Fields:
+#   - account_number: The customer's account number.
+#   - occupant_code: Identifies the occupant linked to the account.
+#   - debtor_no: Reference to debtor information.
+#   - address, city, province, zipcode: Location details for the account.
+#
+cubes:
+  - name: account
+    title: Account
+    description: >
+      This cube represents customer accounts from the pu_account table in the CIS system.
+    sql_table: pu_account
+    data_source: default
+
+    dimensions:
+      - name: id
+        sql: CONCAT({CUBE.accountNumber},'-',{CUBE.occupantCode})
+        type: string
+        primary_key: true
+        public: true
+        title: Account ID
+        description: Unique identifier combining account number and occupant code (account_no-occupant_code).
+
+      - name: name
+        sql: name
+        type: string
+        title: Account Name
+        description: The name associated with the account.
+
+      - name: accountNumber
+        sql: account_no
+        type: string
+        title: The account number
+        description: The account number.
+
+      - name: occupantCode
+        sql: occupant_code
+        type: string
+        title: Occupant Code
+        description: Code identifying the specific occupant linked to the account.
+
+      - name: debtorNumber
+        sql: debtor_no
+        type: string
+        title: Debtor Number
+        description: Reference number linking to debtor information and billing details.
+
+      - name: serviceAddress
+        sql: CONCAT_WS(' ', serv_street_no,serv_street_mod,serv_street)
+        type: string
+        title: Service Address
+        description: Complete service address combining street number, modifier, and street name.
+
+      - name: serviceCity
+        sql: serv_city
+        type: string
+        title: City
+        description: The city where the service is located.
+
+      - name: serviceProvince
+        sql: serv_province
+        type: string
+        title: Province
+        description: The province or state where the service is located.
+
+      - name: serviceZipAndPostalCode
+        sql: IIF(serv_postal_zip = '00000     ', '', serv_postal_zip)
+        type: string
+        title: Postal Code
+        description: The postal or zip code for the service location.

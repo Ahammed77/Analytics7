@@ -1,0 +1,127 @@
+# Cube: cashDetail
+# Purpose:
+#   Detailed cash receipt transactions for auditing, reconciliation, and CSV/Excel export.
+#   Best used to review all cash activity for a day (by run date) or drill into specific entries.
+#
+# Grain:
+#   One row per cash receipt transaction from balance history (pu_balance_hist).
+#
+# Source Tables:
+#   - pu_balance_hist (fact)
+#   - pu_ar_descript (lookup for AR descriptions)
+#   - glsvdata (journal metadata)
+#
+# Filters Applied:
+#   - pu_balance_hist.jour_code = 'CR'         # Cash Receipt journal entries
+#   - glsvdata.applcode = 'PB'                 # Application: Payments/Billing
+#   - glsvdata.journalcode = 'CR'              # Journal code: Cash Receipt
+#
+# Join(s):
+#   - account (many_to_one) on account_number + occupant_code
+#     Enables pulling account attributes and applying account-level filters.
+#
+# Key Dimensions:
+#   - account_number, occupant_code
+#   - run_date (report snapshot date), trans_date (actual transaction date)
+#   - jour_no (journal number), ar_descript (transaction description)
+#
+# Measure(s):
+#   - transactionAmount (SUM of trans_amt)
+#
+# Typical Use Cases:
+#   - Daily cash audit and reconciliation to GL/bank
+#   - Investigate specific journal numbers or descriptions
+#   - Export detailed transactions for external analysis
+#
+# Notes:
+#   - run_date is the reporting snapshot; trans_date is when the transaction occurred.
+#   - Pair with the Account cube for customer context and filtering.
+
+cubes:
+  - name: cashDetail
+    title: Cash Detail
+    description: >
+      Provides a detailed list of individual cash transactions. 
+      Best used when exporting data to Excel/CSV or reviewing all transactions for a specific day (Run Date). 
+      Great for audits or detailed reporting.
+
+    sql: >
+      SELECT pu_balance_hist.account_no as account_no, pu_balance_hist.occupant_code as occupant_code, 
+             run_date, trans_date, jour_code, jour_no, trans_amt, ar_descript, pu_balance_hist.sequence_
+        FROM pu_balance_hist
+        JOIN pu_ar_descript ON pu_balance_hist.desc_code = pu_ar_descript.ar_code
+        JOIN glsvdata ON pu_balance_hist.jour_no = glsvdata.jrnl_no
+        WHERE pu_balance_hist.jour_code = 'CR'
+        AND glsvdata.applcode = 'PB'
+        AND glsvdata.journalcode = 'CR'
+
+    joins:
+      - name: account
+        relationship: many_to_one
+        sql: "{CUBE.accountNumber} = {account.accountNumber} AND {CUBE.occupantCode} = {account.occupantCode}"
+
+    dimensions:
+      - name: sequenceId
+        sql: sequence_
+        type: number
+        title: Sequence ID
+        description: Unique sequence number for the transaction record from balance history.
+        primary_key: true
+
+      - name: accountNumber
+        sql: account_no
+        type: string
+        title: Account Number
+        description: Internal account number associated with the cash balance entry.
+        public: false
+
+      - name: occupantCode
+        sql: occupant_code
+        type: string
+        title: Occupant Code
+        description: Identifier for the occupant tied to the account; used in filtering and joins.
+        public: false
+
+      - name: runDate
+        sql: run_date
+        type: time
+        title: Run Date
+        description: Date when the cash balance snapshot was generated for reporting.
+
+      - name: journalNumber
+        sql: jour_no
+        type: string
+        title: Journal Number
+        description: Journal entry number from the general ledger.
+
+      - name: arDescription
+        sql: ar_descript
+        type: string
+        title: AR Description
+        description: Description of the accounts receivable transaction.
+
+      - name: transactionDate
+        sql: trans_date
+        type: time
+        title: Transaction Date
+        description: Date when the transaction actually occurred.
+
+      - name: transactionMonth
+        sql: dateadd(month, datediff(month, 0, trans_date), 0)
+        type: time
+        title: Transaction Month
+        description: First day of the month for the transaction date, used for monthly rollups.
+
+      - name: transactionYear
+        sql: dateadd(year, datediff(year, 0, trans_date), 0)
+        type: time
+        title: Transaction Year
+        description: First day of the year for the transaction date, used for yearly rollups.
+
+    measures:
+      - name: transactionAmount
+        sql: trans_amt
+        type: sum
+        title: Transaction Amount
+        description: Total amount of the cash balance transaction; summed across records. 
+       

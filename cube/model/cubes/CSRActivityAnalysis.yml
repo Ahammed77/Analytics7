@@ -1,0 +1,51 @@
+# Cube: csrActivityAnalysis
+# Title: CSR Activity Analysis
+#
+# Description:
+#   Analyzes CSR call activity by tracking workload and call volumes per CSR agent
+#   over time. Extends the `CallTypeAnalysis` cube and inherits all its dimensions,
+#   measures, and joins. Provides a focused view for CSR performance and activity monitoring.
+#
+# Grain:
+#   One row per customer service call (`csrcalld.call_number`), same as CallTypeAnalysis.
+#
+# Key Notes:
+#   - Extends `CallTypeAnalysis`, inheriting all base dimensions and measures.
+#   - Customizes the `createdBy` dimension title for CSR-specific context.
+#   - Primary use case: aggregate calls by CSR agent over time periods.
+#   - `createdOn` time dimension (inherited) enables year/month/day/hour granularity analysis.
+#
+# Joins:
+#   - Inherits all joins from `CallTypeAnalysis` (csrctypr, csrstatc, account).
+#
+# Key Dimensions:
+#   - createdBy: CSR agent who logged the call (customized title).
+#   - All other dimensions inherited from CallTypeAnalysis (createdOn, callType, etc.).
+#
+# Key Measures:
+#   - totalCalls: Count of call records (inherited).
+#
+# Typical Use Cases:
+#   - Track individual CSR agent call volumes by year/month/day/hour.
+#   - Compare CSR workload and activity across different time periods.
+#   - Filter by specific CSR agent to analyze their call handling trends.
+#   - Identify high-volume periods for individual CSR agents.
+cubes:
+  - name: csrActivityAnalysis
+    title: CSR Activity Analysis
+    description: >
+        An analytical view of CSR calls, grouped by year and the user (creator) who logged the call. 
+        Useful for tracking CSR workload and activity over time.
+    extends: callTypeAnalysis
+    
+    joins:
+      - name: account
+        relationship: many_to_one
+        sql: "{CUBE.accountNumber} = {account.accountNumber} AND {CUBE.occupantCode} = {account.occupantCode}"
+    
+    dimensions:
+      - name: createdBy
+        sql: createdby
+        type: string
+        title: CSR Agent User
+        description: The user (CSR agent) who created or logged the call record.

@@ -1,0 +1,165 @@
+# Cube: account_balance
+# This cube summarizes customer account balances from the pu_account_pay table,
+# filtered to include only active records (where end_date IS NULL).
+#
+# Each record represents the financial obligations of a customer account,
+# including billed amounts, overdue balances, late charges, and interest.
+# The cube links to the Account cube, since many balance records can belong to
+# a single account.
+#
+# The main measures include last bill amount, current balance, overdue balance,
+# late charges, and interest, as well as total and average balances.
+# Dimensions include billing period dates (start, end, and due date) with
+# breakdowns by month.
+#
+# This cube is useful for monitoring customer payment obligations, tracking
+# overdue amounts, and analyzing account balance trends over time.
+#
+# Joins:
+#   - Links to the Account cube (many balances can belong to one account).
+# Primary Keys:
+#   - account_number + occupant_code + utility_type uniquely identify a record.
+# Key Dimensions:
+#   - start_date, end_date, due_date (with month breakdowns) for billing periods.
+# Key Measures:
+#   - last_bill_amount: Total billed in the last cycle.
+#   - current_balance: Active balance due.
+#   - overdue_balance: Amount overdue.
+#   - latecharge_balance: Late fee charges.
+#   - interest_balance: Interest charges.
+#   - balance: Total sum of all balance components.
+#   - average_balance: Average outstanding balance.
+#
+cubes:
+  - name: accountBalance
+    title: Account Balance
+    description: >
+      This cube summarizes customer account balances from the pu_account_pay table, filtered to include only active records
+    sql: SELECT * FROM pu_account_pay WHERE end_date IS NULL
+    data_source: default
+    joins:
+      - name: account
+        relationship: many_to_one
+        sql: "{CUBE.accountNumber} = {account.accountNumber} AND {CUBE.occupantCode} = {account.occupantCode}"
+
+    dimensions:
+      - name: accountNumber
+        sql: account_no
+        type: string
+        public: false
+        primary_key: true
+        title: Account Number
+        description: The primary account number for the customer (part of composite primary key).
+
+      - name: occupantCode
+        sql: occupant_code
+        type: string
+        public: false
+        primary_key: true
+        title: Occupant Code
+        description: Code identifying the specific occupant linked to the account (part of composite primary key).
+
+      - name: utilityType
+        sql: utility_type
+        type: string
+        public: true
+        primary_key: true
+        title: Utility Type
+        description: Type of utility service (e.g., water, electricity, gas) for this balance record (part of composite primary key).
+
+      - name: startDate
+        sql: start_date
+        type: time
+        title: Billing Period Start Date
+        description: The start date of the billing period for this balance record.
+
+      - name: startDateMonth
+        sql: dateadd(month,datediff(month,0,start_date),0)
+        type: time
+        title: Billing Start Month
+        description: The month of the billing period start date.
+
+      - name: startDateYear
+        sql: dateadd(year,datediff(year,0,start_date),0)
+        type: time
+        title: Billing Start Year
+        description: The year of the billing period start date.
+
+      - name: endDate
+        sql: end_date
+        type: time
+        title: Billing Period End Date
+        description: The end date of the billing period for this balance record.
+
+      - name: endDateMonth
+        sql: dateadd(month,datediff(month,0,end_date),0)
+        type: time
+        title: Billing End Month
+        description: The month of the billing period end date.
+
+      - name: endDateYear
+        sql: dateadd(year,datediff(year,0,end_date),0)
+        type: time
+        title: Billing End Year
+        description: The year of the billing period end date.
+
+      - name: dueDate
+        sql: due_date
+        type: time
+        title: Payment Due Date
+        description: The date when payment for this balance is due.
+
+      - name: dueDateMonth
+        sql: dateadd(month,datediff(month,0,due_date),0)
+        type: time
+        title: Due Date Month
+        description: The month of the payment due date.
+
+      - name: dueDateYear
+        sql: dateadd(year,datediff(year,0,due_date),0)
+        type: time
+        title: Due Date Year
+        description: The year of the payment due date.
+
+    measures:
+      - name: lastBillAmount
+        sql: last_bill_amount
+        type: sum
+        title: Last Bill Amount
+        description: Total amount billed in the last billing cycle for this account and utility type.
+
+      - name: currentBalance
+        sql: current_balance
+        type: sum
+        title: Current Balance
+        description: The current outstanding balance that is not yet overdue.
+
+      - name: overdueBalance
+        sql: overdue_balance
+        type: sum
+        title: Overdue Balance
+        description: The amount that is past due and requires immediate attention.
+
+      - name: lateChargeBalance
+        sql: latecharge_balance
+        type: sum
+        title: Late Charge Balance
+        description: Total late fees and penalties applied to overdue amounts.
+
+      - name: interestBalance
+        sql: interest_balance
+        type: sum
+        title: Interest Balance
+        description: Interest charges applied to outstanding balances.
+
+      - name: totalBalance
+        sql: COALESCE(current_balance,0) + COALESCE(overdue_balance,0) + COALESCE(latecharge_balance,0) + COALESCE(interest_balance,0)
+        type: sum
+        title: Total Balance
+        description: Combined total of all balance components (current + overdue + late charges + interest).
+
+      - name: avgBalance
+        sql: COALESCE(current_balance,0) + COALESCE(overdue_balance,0) + COALESCE(latecharge_balance,0) + COALESCE(interest_balance,0)
+        type: avg
+        title: Average Balance
+        description: Average of the total balance across all records in the filtered dataset.

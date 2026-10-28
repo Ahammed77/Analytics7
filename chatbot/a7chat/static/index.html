@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Analytics 7 Assistant</title>
+<style>
+  :root { --bg: #f6f7f9; --panel: #fff; --ink: #1d2430; --muted: #5b6575; --line: #dde1e7; --accent: #0b5cad; --chip: #e8f0fa; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--ink); }
+  main { max-width: 960px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; min-height: 100vh; }
+  header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  h1 { font-size: 18px; margin: 4px 0 12px; }
+  #log { flex: 1; display: flex; flex-direction: column; gap: 12px; padding-bottom: 12px; }
+  .msg { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+  .msg.user { align-self: flex-end; background: var(--accent); color: #fff; border-color: var(--accent); max-width: 80%; }
+  .sentence { margin: 0 0 8px; }
+  .note { color: var(--muted); font-size: 13px; margin: 8px 0 0; }
+  .table-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { color: var(--muted); font-weight: 600; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+  .chip { border: 1px solid #c6d6ec; background: var(--chip); color: var(--accent); border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 14px; cursor: pointer; text-align: left; }
+  .chip:hover { background: #d9e6f7; }
+  form { display: flex; gap: 8px; position: sticky; bottom: 0; background: var(--bg); padding: 8px 0 4px; }
+  input { flex: 1; font: inherit; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; }
+  button.send, button.reset { font: inherit; border-radius: 8px; padding: 10px 16px; cursor: pointer; }
+  button.send { background: var(--accent); color: #fff; border: 0; }
+  button.reset { background: transparent; border: 1px solid var(--line); color: var(--muted); padding: 6px 12px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Analytics 7 Assistant</h1>
+    <button class="reset" id="reset" type="button">New conversation</button>
+  </header>
+  <div id="log">
+    <div class="msg" id="welcome">
+      <p class="sentence">Ask a question about your CIS data. Name the account number or service address when you mean one customer.</p>
+      <div class="chips" id="chips"></div>
+    </div>
+  </div>
+  <form id="form" autocomplete="off">
+    <input id="input" placeholder="For example: list all customers with a past due balance greater than $100" aria-label="Your question">
+    <button class="send" type="submit">Ask</button>
+  </form>
+</main>
+<script>
+  const log = document.getElementById("log");
+  const input = document.getElementById("input");
+  let conversationId = null;
+  let suggestions = [];
+
+  function el(tag, attrs = {}, text) {
+    const node = document.createElement(tag);
+    Object.assign(node, attrs);
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
+  function renderChips(container, list) {
+    container.replaceChildren(...list.map(q => {
+      const chip = el("button", { type: "button", className: "chip" }, q);
+      chip.addEventListener("click", () => send(q));   // a chip is exactly the typed text
+      return chip;
+    }));
+  }
+
+  function renderAnswer(box, answer) {
+    if (answer.kind === "answer") {
+      box.append(el("p", { className: "sentence" }, answer.sentence));
+      const table = el("table");
+      const head = el("tr");
+      answer.columns.forEach(c => head.append(el("th", {}, c.label)));
+      const thead = el("thead");
+      thead.append(head);
+      table.append(thead);
+      const body = el("tbody");
+      // A column with any fractional value (an amount) shows two decimals throughout; counts stay whole.
+      const decimals = answer.columns.map((_, i) => answer.rows.some(r => typeof r[i] === "number" && !Number.isInteger(r[i])) ? 2 : 0);
+      answer.rows.forEach(row => {
+        const tr = el("tr");
+        row.forEach((v, i) => tr.append(el("td", { className: typeof v === "number" ? "num" : "" },
+          v === null ? "" : typeof v === "number"
+            ? v.toLocaleString(undefined, { minimumFractionDigits: decimals[i], maximumFractionDigits: decimals[i] })
+            : String(v))));
+        body.append(tr);
+      });
+      table.append(body);
+      const wrap = el("div", { className: "table-wrap" });
+      wrap.append(table);
+      box.append(wrap);
+      if (answer.note) box.append(el("p", { className: "note" }, answer.note));
+    } else {
+      box.append(el("p", { className: "sentence" }, answer.text));
+      if (answer.kind === "fixed_reply") {
+        const chips = el("div", { className: "chips" });
+        renderChips(chips, answer.suggestions);
+        box.append(chips);
+      }
+    }
+  }
+
+  async function send(text) {
+    text = text.trim();
+    if (!text) return;
+    log.append(el("div", { className: "msg user" }, text));
+    const box = el("div", { className: "msg" });
+    box.append(el("p", { className: "note" }, "Working on it…"));
+    log.append(box);
+    box.scrollIntoView({ behavior: "smooth", block: "end" });
+    try {
+      const res = await fetch("/api/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text, conversation_id: conversationId }),
+      });
+      const answer = await res.json().catch(() => null);
+      if (!res.ok || !answer) throw new Error(answer && answer.detail ? JSON.stringify(answer.detail) : `the server returned ${res.status}`);
+      conversationId = answer.conversation_id;
+      box.replaceChildren();
+      renderAnswer(box, answer);
+    } catch (err) {
+      box.replaceChildren(el("p", { className: "sentence" }, "Something went wrong: " + err.message));
+    }
+    box.scrollIntoView({ behavior: "smooth", block: "end" });
+  }
+
+  document.getElementById("form").addEventListener("submit", e => {
+    e.preventDefault();
+    const text = input.value;
+    input.value = "";
+    send(text);
+  });
+
+  document.getElementById("reset").addEventListener("click", () => {
+    conversationId = null;
+    log.replaceChildren(document.getElementById("welcome"));
+    input.focus();
+  });
+
+  fetch("/api/suggestions").then(r => r.json()).then(data => {
+    suggestions = data.suggestions;
+    renderChips(document.getElementById("chips"), suggestions);
+  });
+</script>
+</body>
+</html>

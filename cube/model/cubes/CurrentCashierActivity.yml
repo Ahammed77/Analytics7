@@ -1,0 +1,110 @@
+# Cube: currentCashierActivity
+# Title: Analysis on cashier activies
+#
+# Description:
+#   This cube analyzes cash batches processed by cashiers.
+#   It focuses on data from icpcashm (cash detail) and icphdrh (header) tables.
+#   Each row represents a cashier batch with the total tendered amount and transaction date.
+#
+# Grain:
+#   Each row represents one cashier batch (grouped by batchid, userid, trans_date).
+#
+# Key Notes:
+#   - trans_date is the transaction date for the batch.
+#   - userid identifies the cashier.
+#   - batchid identifies the specific batch.
+#   - login identifies the batch name.
+#   - amount represents the total tendered amount for that batch.
+#
+cubes:
+  - name: currentCashierActivity
+    title: Open Cash Batches Analysis
+    description: Analysis of open cash batches by cashier, showing tendered amounts and transaction patterns.
+
+    sql: >
+     SELECT batchid, userid, trans_date, SUM(tendered_amt) as tendered_amt
+     FROM icpcashm
+     INNER JOIN icphdrh ON icphdrh.login = icpcashm.login
+     GROUP BY batchid, userid, trans_date
+
+    data_source: default
+
+    dimensions:
+      # This dimension is for internal use only and it is added for joining with other cubes.
+      - name: id
+        sql: CONCAT(batchid, '-', userid, '-', CONVERT(VARCHAR, trans_date, 112))
+        type: string
+        primary_key: true
+        public: false
+        title: Cash Batch ID
+        description: Unique identifier combining batch ID, user ID, and transaction date.
+
+      - name: transactionDate
+        sql: trans_date
+        type: time
+        title: Transaction Date
+        description: The transaction date for the cash batch.
+
+      - name: batchId
+        sql: batchid
+        type: string
+        title: Batch ID
+        description: Unique identifier for the cash batch.
+
+      - name: userId
+        sql: userid
+        type: string
+        title: User ID
+        description: Cashier user ID who processed the batch.
+
+      - name: batchMonthName
+        sql: UPPER(LEFT(DATENAME(MONTH, trans_date), 3))
+        type: string
+        title: Transaction Month Name
+        description: Three-letter month abbreviation (JAN, FEB, etc.).
+
+    measures:
+      - name: count
+        type: count
+        title: Cash Batch Count
+        description: Number of cash batches in the dataset.
+
+      - name: totalAmount
+        sql: tendered_amt
+        type: sum
+        title: Total Tendered Amount
+        description: Total tendered amount across all batches.
+        format: currency
+
+      - name: avgAmount
+        sql: tendered_amt
+        type: avg
+        title: Average Amount
+        description: Average tendered amount per batch.
+        format: currency
+
+      - name: maxAmount
+        sql: tendered_amt
+        type: max
+        title: Maximum Amount
+        description: Maximum tendered amount in a single batch.
+        format: currency
+
+      - name: minAmount
+        sql: tendered_amt
+        type: min
+        title: Minimum Amount
+        description: Minimum tendered amount in a single batch.
+        format: currency
+
+      - name: batchCount
+        sql: batchid
+        type: count_distinct
+        title: Batch Count
+        description: Number of unique batches.
+
+      - name: cashierCount
+        sql: userid
+        type: count_distinct
+        title: Cashier Count
+        description: Number of unique cashiers.
