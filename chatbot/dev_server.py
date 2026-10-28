@@ -38,8 +38,10 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=8000)
     args = parser.parse_args()
 
-    data_dir = Path(tempfile.gettempdir()) / "a7chat-devdb"
-    shutil.rmtree(data_dir, ignore_errors=True)
+    # A fresh folder each start: a killed run can leave files behind that block initdb.
+    for old in Path(tempfile.gettempdir()).glob("a7chat-devdb*"):
+        shutil.rmtree(old, ignore_errors=True)
+    data_dir = Path(tempfile.mkdtemp(prefix="a7chat-devdb-"))
     server, _, reader_url = start_reporting_db(data_dir)
     os.environ["A7_DATABASE_URL"] = reader_url
     print(f"reporting DB ready; chat at http://127.0.0.1:{args.port}  (query model: {os.environ.get('A7_QUERY_MODEL', 'claude')})")
@@ -47,6 +49,7 @@ def main() -> None:
         uvicorn.run("a7chat.api:create_app", factory=True, host="127.0.0.1", port=args.port, app_dir=str(HERE))
     finally:
         server.cleanup()
+        shutil.rmtree(data_dir, ignore_errors=True)
 
 
 if __name__ == "__main__":
